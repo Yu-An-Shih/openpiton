@@ -57,7 +57,7 @@ module l15_pipeline(
     input wire rst_n,
 
     // pcx
-    input wire [`PCX_REQTYPE_WIDTH-1:0] pcxdecoder_l15_rqtype,
+    input wire [`PCX_REQTYPE_WIDTH-1:0] pcxdecoder_l15_rqtype,      // 5-bit request type
     input wire [`L15_AMO_OP_WIDTH-1:0] pcxdecoder_l15_amo_op,
     input wire pcxdecoder_l15_nc,
     input wire [`PCX_SIZE_FIELD_WIDTH-1:0] pcxdecoder_l15_size,
@@ -67,7 +67,7 @@ module l15_pipeline(
     input wire pcxdecoder_l15_blockstore,
     input wire pcxdecoder_l15_blockinitstore,
     input wire [`L15_WAY_MASK] pcxdecoder_l15_l1rplway,
-    input wire pcxdecoder_l15_val,
+    input wire pcxdecoder_l15_val,                                  /// New request from core
     input wire [`L15_PADDR_MASK] pcxdecoder_l15_address,
     input wire [`TLB_CSM_WIDTH-1:0] pcxdecoder_l15_csm_data,
     input wire [`L15_UNPARAM_63_0] pcxdecoder_l15_data,
@@ -294,7 +294,7 @@ reg noc2_ack_s3;
 
 // fetch state signals
 // used in different stages in S1
-reg [`L15_FETCH_STATE_WIDTH-1:0] fetch_state_s1;
+reg [`L15_FETCH_STATE_WIDTH-1:0] fetch_state_s1;        // 3 bits
 reg [`L15_FETCH_STATE_WIDTH-1:0] fetch_state_next_s1;
 
 // addresses from s2&s3, used to calculate stall_s1
@@ -356,7 +356,7 @@ reg predecode_dcache_noc2_store_sm_s1;
 reg predecode_icache_bit_s1;
 reg predecode_noc2_inval_s1;
 reg predecode_val_s1;
-reg [`L15_PREDECODE_SOURCE_WIDTH-1:0] predecode_source_s1;
+reg [`L15_PREDECODE_SOURCE_WIDTH-1:0] predecode_source_s1;      // 2 bits
 reg predecode_interrupt_broadcast_s1;
 reg [`L15_UNPARAM_3_0] predecode_fwd_subcacheline_vector_s1;
 
@@ -1085,7 +1085,7 @@ end
 // decoder stage (s1)
 ////////////////////////////////
 // generate control bits from instruction
-reg [`L15_ACK_STAGE_WIDTH-1:0] decoder_pcx_ack_stage_s1;
+reg [`L15_ACK_STAGE_WIDTH-1:0] decoder_pcx_ack_stage_s1;        // 2 bits
 reg [`L15_ACK_STAGE_WIDTH-1:0] decoder_noc2_ack_stage_s1;
 reg decoder_stall_on_mshr_allocation_s1;
 reg [`L15_MSHR_ID_WIDTH-1:0] decoder_mshr_allocation_type_s1;
@@ -2687,7 +2687,7 @@ begin
             dcache_index_s2 = cache_index_s2;
             dcache_way_s2 = tagcheck_way_s2;
         end
-        `L15_DCACHE_READ_TAGCHECK_WAY_IF_MES:
+        `L15_DCACHE_READ_TAGCHECK_WAY_IF_MES: // Cacheable load
         begin
             dcache_val_s2 = tagcheck_state_mes_s2;
             dcache_rw_s2 = `L15_DTAG_RW_READ;
@@ -2708,7 +2708,7 @@ begin
             dcache_index_s2 = cache_index_s2;
             dcache_way_s2 = flush_way_s2;
         end
-        `L15_DCACHE_WRITE_TAGCHECK_WAY_IF_ME_FROM_MSHR:
+        `L15_DCACHE_WRITE_TAGCHECK_WAY_IF_ME_FROM_MSHR: // Cacheable store
         begin
             dcache_val_s2 = tagcheck_state_me_s2;
             dcache_rw_s2 = `L15_DTAG_RW_WRITE;
@@ -2884,7 +2884,7 @@ begin
             mesi_write_way_s2 = tagcheck_way_s2;
             mesi_write_state_s2 = `L15_MESI_STATE_S;
         end
-        `L15_S3_MESI_WRITE_TAGCHECK_WAY_M_IF_E:
+        `L15_S3_MESI_WRITE_TAGCHECK_WAY_M_IF_E: // Cacheable store
         begin
             mesi_write_val_s2 = tagcheck_state_e_s2;
             mesi_write_index_s2 = cache_index_s2;
@@ -3934,7 +3934,7 @@ begin
             cpx_type_s3 = `CPX_RESTYPE_LOAD;
             cpx_data_source_s3 = `L15_CPX_SOURCE_BOGUS;
         end
-        `L15_CPX_GEN_LD_RESPONSE_IF_TAGCHECK_MES_FROM_DCACHE:
+        `L15_CPX_GEN_LD_RESPONSE_IF_TAGCHECK_MES_FROM_DCACHE: // Cacheable load
         begin
             cpx_req_val_s3 = tagcheck_state_mes_s3;
             cpx_type_s3 = `CPX_RESTYPE_LOAD;
@@ -3972,7 +3972,7 @@ begin
             cpx_type_s3 = `CPX_RESTYPE_STORE_ACK;
             cpx_inval_way_s3 = wmt_compare_match_way_s3;
         end
-        `L15_CPX_GEN_ST_ACK_IF_TAGCHECK_M_E_WITH_POSSIBLE_INVAL:
+        `L15_CPX_GEN_ST_ACK_IF_TAGCHECK_M_E_WITH_POSSIBLE_INVAL: // Cacheable store
         begin
             cpx_req_val_s3 = tagcheck_state_me_s3;
             cpx_type_s3 = `CPX_RESTYPE_STORE_ACK;
@@ -4166,7 +4166,7 @@ begin
             noc1_homeid_source_s3 = `L15_HOMEID_SRC_CSM_MODULE;
             // creditman_noc1_reserve_s3 = val_s3; // These are actually non-cacheable/prefetch loads
         end
-        `L15_NOC1_GEN_DATA_LD_REQUEST_IF_TAGCHECK_MISS:
+        `L15_NOC1_GEN_DATA_LD_REQUEST_IF_TAGCHECK_MISS: // Cacheable load
         begin
             noc1_req_val_s3 = val_s3 && !tagcheck_state_mes_s3;
             noc1_type_s3 = `L15_NOC1_REQTYPE_LD_REQUEST;
@@ -4190,7 +4190,7 @@ begin
             l15_noc1buffer_req_address = address_s3;
             noc1_homeid_source_s3 = `L15_HOMEID_SRC_CSM_MODULE;
         end
-        `L15_NOC1_GEN_DATA_ST_UPGRADE_IF_TAGCHECK_S_ELSE_ST_FILL_IF_TAGCHECK_I:
+        `L15_NOC1_GEN_DATA_ST_UPGRADE_IF_TAGCHECK_S_ELSE_ST_FILL_IF_TAGCHECK_I: // Cacheable store
         begin
             noc1_req_val_s3 = val_s3 && ((tagcheck_state_s3 == `L15_MESI_STATE_S) || (tagcheck_state_s3 == `L15_MESI_STATE_I));
             noc1_type_s3 = (tagcheck_state_s3 == `L15_MESI_STATE_S) ? `L15_NOC1_REQTYPE_ST_UPGRADE_REQUEST :
