@@ -139,6 +139,20 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 39
 `define L15_CACHE_TAG_HI (`L15_PADDR_HI)
 
+// victim cache
+`define VC_ADDR_WIDTH (`L15_CACHE_TAG_WIDTH+`L15_CACHE_INDEX_WIDTH)
+<%
+   import math
+   import pyhplib
+   from pyhplib import *
+
+   vc_numentries = 16
+   # 16
+   print("`define VC_NUM_ENTRIES %d" % vc_numentries)
+   # 4
+   print("`define VC_NUM_ENTRIES_LOG2 %d" % int(math.log(vc_numentries, 2)))
+%>
+
 // this need to be defined when L1.5 has more sets than L1D
 // for correct operations
 // `define L15_WMT_EXTENDED_ALIAS

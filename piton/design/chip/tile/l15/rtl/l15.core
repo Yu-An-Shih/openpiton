@@ -17,6 +17,7 @@ filesets:
             - pcx_decoder.v
             - pico_decoder.v
             - simplenocbuffer.v
+            - victim_cache.v
         depend:
             - openpiton::piton_include
             - openpiton::piton_common

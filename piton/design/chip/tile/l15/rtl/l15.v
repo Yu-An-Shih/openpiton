@@ -649,6 +649,49 @@ rf_l15_lruarray lruarray(
     .read_data(lruarray_l15_dout_s2)
 );
 
+// victim cache
+wire l15_vc_check_val_s1;
+wire l15_vc_check_rw_s1;
+wire [`VC_ADDR_WIDTH-1:0] l15_vc_check_addr_s1;
+wire [`VC_NUM_ENTRIES_LOG2-1:0] vc_l15_match_index_s2;
+wire [`L15_MESI_STATE_WIDTH-1:0] vc_l15_match_mesi_s2;
+
+wire l15_vc_fetch_val_s2;
+wire l15_vc_fetch_rw_s2;
+wire [`VC_NUM_ENTRIES_LOG2-1:0] l15_vc_fetch_index_s2;
+wire l15_vc_mesi_write_val_s2;
+wire [`L15_MESI_STATE_WIDTH-1:0] l15_vc_mesi_write_state_s2;
+wire [`L15_CACHELINE_WIDTH-1:0] vc_l15_fetch_data_s3;
+wire l15_vc_store_evict_val_s3;
+wire [`VC_ADDR_WIDTH-1:0] l15_vc_store_evict_addr_s3;
+wire [`L15_CACHELINE_WIDTH-1:0] l15_vc_store_evict_data_s3;
+
+victim_cache vc(
+    .clk(clk),
+    .rst_n(rst_n),
+
+    .check_val_i(l15_vc_check_val_s1),
+    .check_rw_i(l15_vc_check_rw_s1),
+    .check_addr_i(l15_vc_check_addr_s1),
+
+    .match_index_o(vc_l15_match_index_s2),
+    .match_mesi_o(vc_l15_match_mesi_s2),
+
+    .fetch_val_i(l15_vc_fetch_val_s2),
+    .fetch_rw_i(l15_vc_fetch_rw_s2),
+    .fetch_index_i(l15_vc_fetch_index_s2),
+    .write_mask_i(l15_dcache_write_mask_s2),
+    .write_data_i(l15_dcache_write_data_s2),
+    .mesi_write_val_i(l15_vc_mesi_write_val_s2),
+    .mesi_write_state_i(l15_vc_mesi_write_state_s2),
+
+    .fetch_data_o(vc_l15_fetch_data_s3),
+
+    .store_evict_val_i(l15_vc_store_evict_val_s3),
+    .store_evict_addr_i(l15_vc_store_evict_addr_s3),
+    .store_evict_data_i(l15_vc_store_evict_data_s3)
+);
+
 // pipeline
 l15_pipeline pipeline(
     .clk(clk),
@@ -659,6 +702,27 @@ l15_pipeline pipeline(
     .lrsc_flag_l15_dout_s2(lrsc_flag_l15_dout_s2),
     .lruarray_l15_dout_s2(lruarray_l15_dout_s2),
     .wmt_l15_data_s3(wmt_l15_data_s3),
+    // victim cache
+    .l15_vc_check_val_s1(l15_vc_check_val_s1),
+    .l15_vc_check_rw_s1(l15_vc_check_rw_s1),
+    .l15_vc_check_addr_s1(l15_vc_check_addr_s1),
+
+    .vc_l15_match_index_s2(vc_l15_match_index_s2),
+    .vc_l15_match_mesi_s2(vc_l15_match_mesi_s2),
+
+    .l15_vc_fetch_val_s2(l15_vc_fetch_val_s2),
+    .l15_vc_fetch_rw_s2(l15_vc_fetch_rw_s2),
+    .l15_vc_fetch_index_s2(l15_vc_fetch_index_s2),
+    .l15_vc_mesi_write_val_s2(l15_vc_mesi_write_val_s2),
+    .l15_vc_mesi_write_state_s2(l15_vc_mesi_write_state_s2),
+
+    .vc_l15_fetch_data_s3(vc_l15_fetch_data_s3),
+
+    .l15_vc_store_evict_val_s3(l15_vc_store_evict_val_s3),
+    .l15_vc_store_evict_addr_s3(l15_vc_store_evict_addr_s3),
+    .l15_vc_store_evict_data_s3(l15_vc_store_evict_data_s3),
+    
+    // pcx
     .pcxdecoder_l15_rqtype               (transducer_l15_rqtype),
     .pcxdecoder_l15_amo_op               (transducer_l15_amo_op),
     .pcxdecoder_l15_nc                   (transducer_l15_nc),

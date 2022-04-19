@@ -54,3 +54,5 @@ sram_wrappers/sram_l15_hmt.v
 
 pico_decoder.v
 l15_picoencoder.v
+
+victim_cache.v
