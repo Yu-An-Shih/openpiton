@@ -19,6 +19,19 @@
 #include <stdlib.h>
 #include "util.h"
 
+#define perf_marker( x ) \
+    asm (   "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+        );
+
 void wait(int t)
 {
     if (t == 0)
@@ -28,6 +41,8 @@ void wait(int t)
 }
 
 int main(int argc, char** argv) {
+
+  perf_marker( 1555 );
 
   // synchronization variable
   // only use the first element in the array. 
@@ -123,6 +138,7 @@ int main(int argc, char** argv) {
     printf("Second round, the counter reaches is %d, %d times of conflicts\n", amo_lrsc[0], k);
   }
   
+  perf_marker( 1666 );
 
   return 0;
 

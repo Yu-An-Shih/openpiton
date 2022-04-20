@@ -15,6 +15,18 @@
 
 #include <stdio.h>
 
+#define perf_marker( x ) \
+    asm (   "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+        );
 
 #define NHARTS       1
 #define PLIC_SOURCES 2
@@ -22,6 +34,8 @@
 #define PLIC_BASE    0xfff1030000ULL
 
 int main(int argc, char ** argv) {
+
+  perf_marker( 1555 );
 
   printf("Reading CLINT registers...\n");
   
@@ -71,6 +85,8 @@ int main(int argc, char ** argv) {
 
       printf("Done!\n");
   }
+
+  perf_marker( 1666 );
       
   return 0;
 }

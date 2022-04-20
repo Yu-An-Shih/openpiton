@@ -16,10 +16,25 @@
 
 #include <stdio.h>
 
+#define perf_marker( x ) \
+    asm (   "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+        );
+
 // 64kB of data
 #define NUM_WORDS 16*1024
 
 int main(int argc, char ** argv) {
+
+  perf_marker( 1555 );
 
   int tmp[NUM_WORDS];
   int accu;
@@ -35,6 +50,8 @@ int main(int argc, char ** argv) {
 
   int expected = NUM_WORDS*(NUM_WORDS-1)/2;
   printf("exp: %d, act: %d\n", expected, accu);
+
+  perf_marker( 1666 );
 
   return (expected!=accu);
 }
