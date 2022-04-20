@@ -15,7 +15,22 @@
 
 #include <stdio.h>
 
+#define perf_marker( x ) \
+    asm (   "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+        );
+
 int main(int argc, char ** argv) {
+
+  perf_marker( 1555 );
 
   for (int k = 0; k < 32; k++) {
     // assemble number and print
@@ -23,6 +38,8 @@ int main(int argc, char ** argv) {
   }
 
   printf("Done!\n");
+
+  perf_marker( 1666 );
 
   return 0;
 }

@@ -18,6 +18,19 @@
 #include <stdio.h>
 #include "util.h"
 
+#define perf_marker( x ) \
+    asm (   "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+        );
+
 void do_work(int n)
 {
     if (n==0)
@@ -27,6 +40,8 @@ void do_work(int n)
 }
 
 int main(int argc, char** argv) {
+
+  perf_marker( 1555 );
 
   volatile static uint32_t amo_lrsc[20];
 
@@ -56,6 +71,8 @@ int main(int argc, char** argv) {
         tmp += amo_lrsc[1536];
         SC_OP(tmp, amo_lrsc[0], 0x345, w);
         printf("Third LRSC suc: %d\n", tmp);
+  
+  perf_marker( 1666 );
   
   return 0;
 

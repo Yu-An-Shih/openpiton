@@ -18,7 +18,22 @@
 #include <stdio.h>
 #include "util.h"
 
+#define perf_marker( x ) \
+    asm (   "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+        );
+
 int main(int argc, char** argv) {
+
+  perf_marker( 1555 );
 
   // synchronization variable
   volatile static uint32_t amo_cnt = 0;
@@ -31,6 +46,8 @@ int main(int argc, char** argv) {
 
   // increment atomic counter
   ATOMIC_OP(amo_cnt, 1, add, w);
+
+  perf_marker( 1666 );
 
   return 0;
 }

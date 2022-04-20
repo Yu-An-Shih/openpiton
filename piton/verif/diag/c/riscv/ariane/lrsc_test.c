@@ -20,7 +20,22 @@
 #include "util.h"
 #define ITERATION 10
 
+#define perf_marker( x ) \
+    asm (   "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+        );
+
 int main(int argc, char** argv) {
+
+  perf_marker( 1555 );
 
   // synchronization variable
   // only use the [0] item in our test. 
@@ -82,6 +97,8 @@ int main(int argc, char** argv) {
     printf("At last... lrsc variable is %d\n", amo_lrsc[0]);
     // Printed result should be core_num * ITERATION
   }
+
+  perf_marker( 1666 );
   
   return 0;
 

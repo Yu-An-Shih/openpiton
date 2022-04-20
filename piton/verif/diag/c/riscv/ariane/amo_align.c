@@ -17,9 +17,24 @@
 #include <stdio.h>
 #include "util.h"
 
+#define perf_marker( x ) \
+    asm (   "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+        );
+
 #define NUM_WORDS 16
 
 int main(int argc, char** argv) {
+
+  perf_marker( 1555 );
 
   volatile static uint32_t amo_cnt[NUM_WORDS] = {0x33221100,
                                                  0x77665544,
@@ -77,6 +92,8 @@ int main(int argc, char** argv) {
 
     printf("checks for word %d passed\n", k);
   }
+
+  perf_marker( 1666 );
 
   return 0;
 }
