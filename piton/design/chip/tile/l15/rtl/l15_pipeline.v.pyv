@@ -4559,7 +4559,7 @@ begin
             noc3_address_s3 = address_s3;
             noc3_homeid_source_s3 = `L15_HOMEID_SRC_HMT;
         end
-        `L15_NOC3_GEN_WRITEBACK_IF_LRU_M_FROM_DCACHE:
+        `L15_NOC3_GEN_WRITEBACK_IF_LRU_M_FROM_DCACHE: // eviction due to load/store miss
         begin
             noc3_req_val_s3 = val_s3 && lru_state_m_s3;
             noc3_type_s3 = `L15_NOC3_REQTYPE_WRITEBACK;
