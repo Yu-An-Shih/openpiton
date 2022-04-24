@@ -71,7 +71,7 @@ always @(*) begin
     // store evict data (S3)
     if (store_evict_val_i) begin
         // handle conflicts
-        if ( ( ((match_index_next == evict_cntr) && (match_mesi_next != `L15_MESI_STATE_I))
+        /*if ( ( ((match_index_next == evict_cntr) && (match_mesi_next != `L15_MESI_STATE_I))
             && (fetch_val_i && (fetch_index_i == evict_cntr + 1)) )
           || ( (fetch_val_i && (fetch_index_i == evict_cntr)) 
             && ((match_index_next == evict_cntr + 1) && (match_mesi_next != `L15_MESI_STATE_I)) )
@@ -95,10 +95,13 @@ always @(*) begin
             // TODO: what if vc_mesi[evict_cntr] == `L15_MESI_STATE_M?
 
             evict_cntr_next = evict_cntr + 1;
-        end
-    end
-    
-    if (store_evict_val_i) begin
+        end*/
+
+        vc_addr_next[evict_cntr] = store_evict_addr_i;
+        vc_data_next[evict_cntr] = store_evict_data_i;
+        vc_mesi_next[evict_cntr] = `L15_MESI_STATE_E;
+        // TODO: what if vc_mesi[evict_cntr] == `L15_MESI_STATE_M?
+
         evict_cntr_next = evict_cntr + 1;
     end
 end
