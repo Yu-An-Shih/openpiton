@@ -3934,19 +3934,19 @@ begin
             cpx_type_s3 = `CPX_RESTYPE_LOAD;
             cpx_data_source_s3 = `L15_CPX_SOURCE_BOGUS;
         end
-        `L15_CPX_GEN_LD_RESPONSE_IF_TAGCHECK_MES_FROM_DCACHE:
+        `L15_CPX_GEN_LD_RESPONSE_IF_TAGCHECK_MES_FROM_DCACHE: // L15_REQTYPE_LOAD
         begin
             cpx_req_val_s3 = tagcheck_state_mes_s3;
             cpx_type_s3 = `CPX_RESTYPE_LOAD;
             cpx_data_source_s3 = `L15_CPX_SOURCE_DCACHE;
         end
-        `L15_CPX_GEN_LD_RESPONSE_FROM_NOC2:
+        `L15_CPX_GEN_LD_RESPONSE_FROM_NOC2: // ACKDT_LD - fill, ACKDT_LD_NC
         begin
             cpx_req_val_s3 = 1'b1;
             cpx_type_s3 = `CPX_RESTYPE_LOAD;
             cpx_data_source_s3 = `L15_CPX_SOURCE_NOC2_BUFFER;
         end
-        `L15_CPX_GEN_ST_ACK:
+        `L15_CPX_GEN_ST_ACK: // L15_REQTYPE_ACKDT_ST_IM - fill, ...
         begin
             cpx_req_val_s3 = 1'b1;
             cpx_type_s3 = `CPX_RESTYPE_STORE_ACK;
@@ -3972,7 +3972,7 @@ begin
             cpx_type_s3 = `CPX_RESTYPE_STORE_ACK;
             cpx_inval_way_s3 = wmt_compare_match_way_s3;
         end
-        `L15_CPX_GEN_ST_ACK_IF_TAGCHECK_M_E_WITH_POSSIBLE_INVAL:
+        `L15_CPX_GEN_ST_ACK_IF_TAGCHECK_M_E_WITH_POSSIBLE_INVAL: // L15_REQTYPE_STORE - regular st
         begin
             cpx_req_val_s3 = tagcheck_state_me_s3;
             cpx_type_s3 = `CPX_RESTYPE_STORE_ACK;
@@ -4158,7 +4158,7 @@ begin
             creditman_noc1_mispredicted_s3 = noc1_req_val_s3 ? 0 : val_s3;
             noc1_homeid_source_s3 = `L15_HOMEID_SRC_HMT;
         end
-        `L15_NOC1_GEN_DATA_LD_REQUEST:
+        `L15_NOC1_GEN_DATA_LD_REQUEST: // L15_REQTYPE_LOAD_NC - nc load
         begin
             noc1_req_val_s3 = val_s3;
             noc1_type_s3 = `L15_NOC1_REQTYPE_LD_REQUEST;
@@ -4182,7 +4182,7 @@ begin
             l15_noc1buffer_req_address = address_s3;
             noc1_homeid_source_s3 = `L15_HOMEID_SRC_CSM_MODULE;
         end
-        `L15_NOC1_GEN_DATA_WRITETHROUGH_REQUEST_FROM_PCX:
+        `L15_NOC1_GEN_DATA_WRITETHROUGH_REQUEST_FROM_PCX: // L15_REQTYPE_WRITETHROUGH - st nc or blockstore
         begin
             noc1_req_val_s3 = val_s3;
             noc1_type_s3 = `L15_NOC1_REQTYPE_WRITETHROUGH_REQUEST;
