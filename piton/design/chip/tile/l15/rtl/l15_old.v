@@ -50,50 +50,50 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 module l15 (
     input                                   clk,
     input                                   rst_n,
-    
-    input [4:0]                             transducer_l15_rqtype,
-    input [`L15_AMO_OP_WIDTH-1:0]           transducer_l15_amo_op,
-    input                                   transducer_l15_nc,
-    input [2:0]                             transducer_l15_size,
-    input [`L15_THREADID_MASK]              transducer_l15_threadid,
-    input                                   transducer_l15_prefetch,
-    input                                   transducer_l15_invalidate_cacheline,
-    input                                   transducer_l15_blockstore,
-    input                                   transducer_l15_blockinitstore,
-    input [1:0]                             transducer_l15_l1rplway,
-    input                                   transducer_l15_val,
-    input [39:0]                            transducer_l15_address,
-    input [63:0]                            transducer_l15_data,
-    input [63:0]                            transducer_l15_data_next_entry,
-    input [`TLB_CSM_WIDTH-1:0]              transducer_l15_csm_data,
+    // Request from core
+    input [4:0]                             transducer_l15_rqtype,                  // Request type
+    input [`L15_AMO_OP_WIDTH-1:0]           transducer_l15_amo_op,                  // Atomic type (if rqtype is atomic)
+    input                                   transducer_l15_nc,                      // Non-cacheable request
+    input [2:0]                             transducer_l15_size,                    // Size of request (power-of-2 minus 1)
+    input [`L15_THREADID_MASK]              transducer_l15_threadid,                // ignore - "Thread" making request
+    input                                   transducer_l15_prefetch,                // ignore - Unused
+    input                                   transducer_l15_invalidate_cacheline,    // ignore - Core requests invalidation
+    input                                   transducer_l15_blockstore,              // ignore - Unused
+    input                                   transducer_l15_blockinitstore,          // ignore - Unused
+    input [1:0]                             transducer_l15_l1rplway,                // L1 cache way to be written to
+    input                                   transducer_l15_val,                     // New request from core
+    input [39:0]                            transducer_l15_address,                 // 40 bit physical address
+    input [63:0]                            transducer_l15_data,                    // 64 bits of data
+    input [63:0]                            transducer_l15_data_next_entry,         // further 64 bits of data
+    input [`TLB_CSM_WIDTH-1:0]              transducer_l15_csm_data,                // ignore - Not important right now
 
-    output                                  l15_transducer_ack,
-    output                                  l15_transducer_header_ack,
+    output                                  l15_transducer_ack,                     // Request received by L1.5
+    output                                  l15_transducer_header_ack,              // L1.5 can accept next request
+    // Response to core
+    output                                  l15_transducer_val,                     // L1.5 has response for core
+    output [3:0]                            l15_transducer_returntype,              // Response type
+    output                                  l15_transducer_l2miss,                  // ignore - Request missed in L2
+    output [1:0]                            l15_transducer_error,                   // ignore - Unused
+    output                                  l15_transducer_noncacheable,            // Request was non-cacheable
+    output                                  l15_transducer_atomic,                  // Response to an atomic request
+    output [`L15_THREADID_MASK]             l15_transducer_threadid,                // ignore - "Thread" that made request
+    output                                  l15_transducer_prefetch,                // ignore - Unused
+    output                                  l15_transducer_f4b,                     // ignore - 4 byte ifill from NC/IO space
+    output [63:0]                           l15_transducer_data_0,                  // Data response (used by L1D and L1I)
+    output [63:0]                           l15_transducer_data_1,                  // Data response (used by L1D and L1I)
+    output [63:0]                           l15_transducer_data_2,                  // Data response (used only by L1I)
+    output [63:0]                           l15_transducer_data_3,                  // Data response (used only by L1I)
+    output                                  l15_transducer_inval_icache_all_way,    // ignore - Invalidate all ways
+    output                                  l15_transducer_inval_dcache_all_way,    // ignore - Unused
+    output [15:4]                           l15_transducer_inval_address_15_4,      // ignore - Invalidate selected line
+    output                                  l15_transducer_cross_invalidate,        // ignore - Unused
+    output [1:0]                            l15_transducer_cross_invalidate_way,    // ignore - Unused
+    output                                  l15_transducer_inval_dcache_inval,      // ignore - Invalidate selected line & way
+    output                                  l15_transducer_inval_icache_inval,      // ignore - Unused
+    output [1:0]                            l15_transducer_inval_way,               // ignore - Way to invalidate
+    output                                  l15_transducer_blockinitstore,          // ignore - Unused
 
-    output                                  l15_transducer_val,
-    output [3:0]                            l15_transducer_returntype,
-    output                                  l15_transducer_l2miss,
-    output [1:0]                            l15_transducer_error,
-    output                                  l15_transducer_noncacheable,
-    output                                  l15_transducer_atomic,
-    output [`L15_THREADID_MASK]             l15_transducer_threadid,
-    output                                  l15_transducer_prefetch,
-    output                                  l15_transducer_f4b,
-    output [63:0]                           l15_transducer_data_0,
-    output [63:0]                           l15_transducer_data_1,
-    output [63:0]                           l15_transducer_data_2,
-    output [63:0]                           l15_transducer_data_3,
-    output                                  l15_transducer_inval_icache_all_way,
-    output                                  l15_transducer_inval_dcache_all_way,
-    output [15:4]                           l15_transducer_inval_address_15_4,
-    output                                  l15_transducer_cross_invalidate,
-    output [1:0]                            l15_transducer_cross_invalidate_way,
-    output                                  l15_transducer_inval_dcache_inval,
-    output                                  l15_transducer_inval_icache_inval,
-    output [1:0]                            l15_transducer_inval_way,
-    output                                  l15_transducer_blockinitstore,
-
-    input                                   transducer_l15_req_ack,
+    input                                   transducer_l15_req_ack,                 // Response received by core
 
     input                                   noc1_out_rdy,
     input                                   noc2_in_val,
@@ -650,13 +650,18 @@ rf_l15_lruarray lruarray(
 );
 
 // victim cache
-wire l15_vc_read_val_s1;
-wire [`VC_ADDR_WIDTH-1:0] l15_vc_read_addr_s1;
+wire l15_vc_check_val_s1;
+wire l15_vc_check_rw_s1;
+wire [`VC_ADDR_WIDTH-1:0] l15_vc_check_addr_s1;
+wire [`VC_NUM_ENTRIES_LOG2-1:0] vc_l15_match_index_s2;
+wire [`L15_MESI_STATE_WIDTH-1:0] vc_l15_match_mesi_s2;
 
-wire [`VC_NUM_ENTRIES_LOG2-1:0] vc_l15_index_s2;
-wire [`L15_MESI_STATE_WIDTH-1:0] vc_l15_mesi_s2;
-wire [`L15_CACHELINE_WIDTH-1:0] vc_l15_data_s2;
-
+wire l15_vc_fetch_val_s2;
+wire l15_vc_fetch_rw_s2;
+wire [`VC_NUM_ENTRIES_LOG2-1:0] l15_vc_fetch_index_s2;
+wire l15_vc_mesi_write_val_s2;
+wire [`L15_MESI_STATE_WIDTH-1:0] l15_vc_mesi_write_state_s2;
+wire [`L15_CACHELINE_WIDTH-1:0] vc_l15_fetch_data_s3;
 wire l15_vc_store_evict_val_s3;
 wire [`VC_ADDR_WIDTH-1:0] l15_vc_store_evict_addr_s3;
 wire [`L15_CACHELINE_WIDTH-1:0] l15_vc_store_evict_data_s3;
@@ -665,41 +670,59 @@ victim_cache vc(
     .clk(clk),
     .rst_n(rst_n),
 
-    .l15_vc_read_val_s1(l15_vc_read_val_s1),
-    .l15_vc_read_addr_s1(l15_vc_read_addr_s1),
+    .check_val_i(l15_vc_check_val_s1),
+    .check_rw_i(l15_vc_check_rw_s1),
+    .check_addr_i(l15_vc_check_addr_s1),
 
-    .vc_l15_index_s2(vc_l15_index_s2),
-    .vc_l15_mesi_s2(vc_l15_mesi_s2),
-    .vc_l15_data_s2(vc_l15_data_s2),
+    .match_index_o(vc_l15_match_index_s2),
+    .match_mesi_o(vc_l15_match_mesi_s2),
 
-    .l15_vc_store_evict_val_s3(l15_vc_store_evict_val_s3),
-    .l15_vc_store_evict_addr_s3(l15_vc_store_evict_addr_s3),
-    .l15_vc_store_evict_data_s3(l15_vc_store_evict_data_s3)
+    .fetch_val_i(l15_vc_fetch_val_s2),
+    .fetch_rw_i(l15_vc_fetch_rw_s2),
+    .fetch_index_i(l15_vc_fetch_index_s2),
+    .write_mask_i(l15_dcache_write_mask_s2),
+    .write_data_i(l15_dcache_write_data_s2),
+    .mesi_write_val_i(l15_vc_mesi_write_val_s2),
+    .mesi_write_state_i(l15_vc_mesi_write_state_s2),
+
+    .fetch_data_o(vc_l15_fetch_data_s3),
+
+    .store_evict_val_i(l15_vc_store_evict_val_s3),
+    .store_evict_addr_i(l15_vc_store_evict_addr_s3),
+    .store_evict_data_i(l15_vc_store_evict_data_s3)
 );
 
 // pipeline
 l15_pipeline pipeline(
     .clk(clk),
     .rst_n(rst_n),
-
-    // victim cache
-    .l15_vc_read_val_s1(l15_vc_read_val_s1),
-    .l15_vc_read_addr_s1(l15_vc_read_addr_s1),
-
-    .vc_l15_index_s2(vc_l15_index_s2),
-    .vc_l15_mesi_s2(vc_l15_mesi_s2),
-    .vc_l15_data_s2(vc_l15_data_s2),
-
-    .l15_vc_store_evict_val_s3(l15_vc_store_evict_val_s3),
-    .l15_vc_store_evict_addr_s3(l15_vc_store_evict_addr_s3),
-    .l15_vc_store_evict_data_s3(l15_vc_store_evict_data_s3),
-
     .dtag_l15_dout_s2(dtag_l15_dout_s2),
     .dcache_l15_dout_s3(dcache_l15_dout_s3),
     .mesi_l15_dout_s2(mesi_l15_dout_s2),
     .lrsc_flag_l15_dout_s2(lrsc_flag_l15_dout_s2),
     .lruarray_l15_dout_s2(lruarray_l15_dout_s2),
     .wmt_l15_data_s3(wmt_l15_data_s3),
+    // victim cache
+    .l15_vc_check_val_s1(l15_vc_check_val_s1),
+    .l15_vc_check_rw_s1(l15_vc_check_rw_s1),
+    .l15_vc_check_addr_s1(l15_vc_check_addr_s1),
+
+    .vc_l15_match_index_s2(vc_l15_match_index_s2),
+    .vc_l15_match_mesi_s2(vc_l15_match_mesi_s2),
+
+    .l15_vc_fetch_val_s2(l15_vc_fetch_val_s2),
+    .l15_vc_fetch_rw_s2(l15_vc_fetch_rw_s2),
+    .l15_vc_fetch_index_s2(l15_vc_fetch_index_s2),
+    .l15_vc_mesi_write_val_s2(l15_vc_mesi_write_val_s2),
+    .l15_vc_mesi_write_state_s2(l15_vc_mesi_write_state_s2),
+
+    .vc_l15_fetch_data_s3(vc_l15_fetch_data_s3),
+
+    .l15_vc_store_evict_val_s3(l15_vc_store_evict_val_s3),
+    .l15_vc_store_evict_addr_s3(l15_vc_store_evict_addr_s3),
+    .l15_vc_store_evict_data_s3(l15_vc_store_evict_data_s3),
+    
+    // pcx
     .pcxdecoder_l15_rqtype               (transducer_l15_rqtype),
     .pcxdecoder_l15_amo_op               (transducer_l15_amo_op),
     .pcxdecoder_l15_nc                   (transducer_l15_nc),

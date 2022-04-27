@@ -57,19 +57,27 @@ module l15_pipeline(
     input wire rst_n,
 
     // victim cache
-    output reg l15_vc_read_val_s1,
-    output reg [`VC_ADDR_WIDTH-1:0] l15_vc_read_addr_s1,
+    output reg l15_vc_check_val_s1,
+    output reg l15_vc_check_rw_s1,
+    output reg [`VC_ADDR_WIDTH-1:0] l15_vc_check_addr_s1,
 
-    input wire [`VC_NUM_ENTRIES_LOG2-1:0] vc_l15_index_s2,
-    input wire [`L15_MESI_STATE_WIDTH-1:0] vc_l15_mesi_s2,
-    input wire [`L15_CACHELINE_WIDTH-1:0] vc_l15_data_s2,
+    input wire [`VC_NUM_ENTRIES_LOG2-1:0] vc_l15_match_index_s2,
+    input wire [`L15_MESI_STATE_WIDTH-1:0] vc_l15_match_mesi_s2,
+
+    output reg l15_vc_fetch_val_s2,
+    output reg l15_vc_fetch_rw_s2,
+    output reg [`VC_NUM_ENTRIES_LOG2-1:0] l15_vc_fetch_index_s2,
+    output reg l15_vc_mesi_write_val_s2,
+    output reg [`L15_MESI_STATE_WIDTH-1:0] l15_vc_mesi_write_state_s2,
+
+    input wire [`L15_CACHELINE_WIDTH-1:0] vc_l15_fetch_data_s3,
 
     output reg l15_vc_store_evict_val_s3,
     output reg [`VC_ADDR_WIDTH-1:0] l15_vc_store_evict_addr_s3,
     output reg [`L15_CACHELINE_WIDTH-1:0] l15_vc_store_evict_data_s3,
 
     // pcx
-    input wire [`PCX_REQTYPE_WIDTH-1:0] pcxdecoder_l15_rqtype,
+    input wire [`PCX_REQTYPE_WIDTH-1:0] pcxdecoder_l15_rqtype,      // 5-bit request type
     input wire [`L15_AMO_OP_WIDTH-1:0] pcxdecoder_l15_amo_op,
     input wire pcxdecoder_l15_nc,
     input wire [`PCX_SIZE_FIELD_WIDTH-1:0] pcxdecoder_l15_size,
@@ -79,7 +87,7 @@ module l15_pipeline(
     input wire pcxdecoder_l15_blockstore,
     input wire pcxdecoder_l15_blockinitstore,
     input wire [`L15_WAY_MASK] pcxdecoder_l15_l1rplway,
-    input wire pcxdecoder_l15_val,
+    input wire pcxdecoder_l15_val,                                  /// New request from core
     input wire [`L15_PADDR_MASK] pcxdecoder_l15_address,
     input wire [`TLB_CSM_WIDTH-1:0] pcxdecoder_l15_csm_data,
     input wire [`L15_UNPARAM_63_0] pcxdecoder_l15_data,
@@ -306,7 +314,7 @@ reg noc2_ack_s3;
 
 // fetch state signals
 // used in different stages in S1
-reg [`L15_FETCH_STATE_WIDTH-1:0] fetch_state_s1;
+reg [`L15_FETCH_STATE_WIDTH-1:0] fetch_state_s1;        // 3 bits
 reg [`L15_FETCH_STATE_WIDTH-1:0] fetch_state_next_s1;
 
 // addresses from s2&s3, used to calculate stall_s1
@@ -324,21 +332,6 @@ begin
     l15_pcxdecoder_ack = pcx_ack_s1 || pcx_ack_s2 || pcx_ack_s3;
     l15_noc2decoder_ack = noc2_ack_s1 || noc2_ack_s2 || noc2_ack_s3;
 end
-
-// victim cache signals
-reg vc_read_val_s1;
-reg [`VC_ADDR_WIDTH-1:0] vc_read_addr_s1;
-
-reg [`L15_MESI_STATE_WIDTH-1:0] vc_mesi_s3, vc_mesi_s3_next;
-reg [`L15_CACHELINE_WIDTH-1:0] vc_data_s3, vc_data_s3_next;
-
-reg vc_store_evict_val_s3;
-reg [`VC_ADDR_WIDTH-1:0] vc_store_evict_addr_s3;
-reg [`L15_CACHELINE_WIDTH-1:0] vc_store_evict_data_s3;
-
-wire vc_hit_s2 = (vc_l15_mesi_s2 != `L15_MESI_STATE_I);
-wire vc_hit_s3 = (vc_mesi_s3 != `L15_MESI_STATE_I);
-
 
 //////////////////////////
 // STAGE 1
@@ -383,7 +376,7 @@ reg predecode_dcache_noc2_store_sm_s1;
 reg predecode_icache_bit_s1;
 reg predecode_noc2_inval_s1;
 reg predecode_val_s1;
-reg [`L15_PREDECODE_SOURCE_WIDTH-1:0] predecode_source_s1;
+reg [`L15_PREDECODE_SOURCE_WIDTH-1:0] predecode_source_s1;      // 2 bits
 reg predecode_interrupt_broadcast_s1;
 reg [`L15_UNPARAM_3_0] predecode_fwd_subcacheline_vector_s1;
 
@@ -1112,7 +1105,7 @@ end
 // decoder stage (s1)
 ////////////////////////////////
 // generate control bits from instruction
-reg [`L15_ACK_STAGE_WIDTH-1:0] decoder_pcx_ack_stage_s1;
+reg [`L15_ACK_STAGE_WIDTH-1:0] decoder_pcx_ack_stage_s1;        // 2 bits
 reg [`L15_ACK_STAGE_WIDTH-1:0] decoder_noc2_ack_stage_s1;
 reg decoder_stall_on_mshr_allocation_s1;
 reg [`L15_MSHR_ID_WIDTH-1:0] decoder_mshr_allocation_type_s1;
@@ -1260,14 +1253,14 @@ begin
             decoder_dtag_operation_s1 = `L15_DTAG_OP_READ;
             decoder_mesi_read_op_s1 = `L15_S2_MESI_READ;
             decoder_dcache_operation_s1 = `L15_DCACHE_READ_TAGCHECK_WAY_IF_MES;
-            decoder_s3_mshr_operation_s1 = `L15_S3_MSHR_OP_DEALLOCATION_IF_TAGCHECK_MES;                   // modified
-            decoder_cpx_operation_s1 = `L15_CPX_GEN_LD_RESPONSE_IF_TAGCHECK_MES_FROM_DCACHE;               // modified
+            decoder_s3_mshr_operation_s1 = `L15_S3_MSHR_OP_DEALLOCATION_IF_TAGCHECK_MES;
+            decoder_cpx_operation_s1 = `L15_CPX_GEN_LD_RESPONSE_IF_TAGCHECK_MES_FROM_DCACHE;
             decoder_wmt_read_op_s1 = `L15_WMT_READ;
             decoder_wmt_write_op_s1 = `L15_WMT_UPDATE_TAGCHECK_WAY_AND_DEDUP_ENTRY_IF_TAGCHECK_WAY_IS_MES;
             decoder_wmt_compare_op_s1 = `L15_WMT_COMPARE_TAGCHECK;
-            decoder_csm_op_s1 = `L15_CSM_OP_READ_GHID_IF_TAGCHECK_MISS;                                    // modified?
+            decoder_csm_op_s1 = `L15_CSM_OP_READ_GHID_IF_TAGCHECK_MISS;
             decoder_lruarray_write_op_s1 = `L15_LRU_UPDATE_ACCESS_BITS_IF_TAGCHECK_WAY_IS_MES;
-            decoder_noc1_operation_s1 = `L15_NOC1_GEN_DATA_LD_REQUEST_IF_TAGCHECK_MISS;                    // modified
+            decoder_noc1_operation_s1 = `L15_NOC1_GEN_DATA_LD_REQUEST_IF_TAGCHECK_MISS;
             decoder_creditman_noc1_needed = 2'd1;
         end
 
@@ -1593,7 +1586,7 @@ begin
             decoder_cpx_operation_s1 = `L15_CPX_GEN_DCACHE_INVALIDATION;
         end // todo
 
-        `L15_REQTYPE_INVALIDATION: // MSG_TYPE_STORE_FWD, MSG_TYPE_INV_FWD
+        `L15_REQTYPE_INVALIDATION:
         begin
             if (fetch_state_s1 == `L15_FETCH_STATE_NORMAL)
             begin // we only stall on the first inval
@@ -2014,7 +2007,7 @@ begin
             dtag_rw_s1 = `L15_DTAG_RW_READ;
             dtag_index_s1 = predecode_cache_index_s1;
         end
-        `L15_DTAG_OP_WRITE: // L15_REQTYPE_ACKDT_LD/ST_IM/LR - the fill
+        `L15_DTAG_OP_WRITE:
         begin
             dtag_val_s1 = val_s1;
             dtag_rw_s1 = `L15_DTAG_RW_WRITE;
@@ -2062,6 +2055,37 @@ begin
 
     l15_mesi_read_val_s1 = mesi_read_val_s1 && val_s1 && !stall_s1;
     l15_mesi_read_index_s1[`L15_CACHE_INDEX_WIDTH-1:0] = mesi_read_index_s1;
+end
+
+////////////////////////////
+// Victim Cache (S1)
+////////////////////////////
+reg vc_check_val_s1;
+reg vc_check_rw_s1;
+reg [`VC_ADDR_WIDTH-1:0] vc_check_addr_s1;
+
+always @ *
+begin
+    vc_check_val_s1 = 0;
+    vc_check_rw_s1 = 0;
+    vc_check_addr_s1 = 0;
+    case (decoder_dtag_operation_s1)
+        `L15_DTAG_OP_READ:
+        begin
+            vc_check_val_s1 = val_s1;
+            vc_check_rw_s1 = `L15_DTAG_RW_READ;
+            vc_check_addr_s1 = predecode_address_s1[`L15_CACHE_TAG_HI:`L15_IDX_LOW]; // [39:4]
+        end
+        `L15_DTAG_OP_WRITE:
+        begin
+            // TODO
+        end
+    endcase
+
+    // INPUT/OUTPUT TO VC
+    l15_vc_check_val_s1 = vc_check_val_s1 && !stall_s1;
+    l15_vc_check_rw_s1 = vc_check_rw_s1;
+    l15_vc_check_addr_s1 = vc_check_addr_s1;
 end
 
 ////////////////////////////
@@ -2497,7 +2521,6 @@ reg tagcheck_lrsc_flag_s2;
 
 reg [`L15_UNPARAM_1_0] lru_state_s2;
 reg lru_state_m_s2;
-reg lru_state_me_s2;
 reg lru_state_mes_s2;
 reg [`L15_CACHE_TAG_WIDTH-1:0] lru_way_tag_s2;
 reg [`L15_PADDR_MASK] lru_way_address_s2;
@@ -2588,7 +2611,6 @@ begin
     tagcheck_state_e_s2 = tagcheck_state_s2 == `L15_MESI_STATE_E;
 
     lru_state_m_s2 = lru_state_s2 == `L15_MESI_STATE_M;
-    lru_state_me_s2 = (lru_state_s2 == `L15_MESI_STATE_M) || (lru_state_s2 == `L15_MESI_STATE_E);
     lru_state_mes_s2 = lru_state_s2 == `L15_MESI_STATE_M || lru_state_s2 == `L15_MESI_STATE_E
                                                         || lru_state_s2 == `L15_MESI_STATE_S;
 
@@ -2597,7 +2619,6 @@ begin
     flush_state_mes_s2 = flush_state_s2 == `L15_MESI_STATE_M || flush_state_s2 == `L15_MESI_STATE_E
                                                         || flush_state_s2 == `L15_MESI_STATE_S;
 end
-
 
 //////////////////////
 // LRU logic
@@ -2709,25 +2730,25 @@ begin
     dcache_diag_offset_s2 = address_s2[3];
 
     case (dcache_operation_s2)
-        `L15_DCACHE_READ_TAGCHECK_WAY_IF_M: // L15_REQTYPE_INVALIDATION (from STORE_FWD), ...
+        `L15_DCACHE_READ_TAGCHECK_WAY_IF_M:
         begin
             dcache_val_s2 = tagcheck_state_m_s2;
-            //dcache_val_s2 = lru_state_me_s2;
             dcache_rw_s2 = `L15_DTAG_RW_READ;
             dcache_index_s2 = cache_index_s2;
             dcache_way_s2 = tagcheck_way_s2;
         end
-        `L15_DCACHE_READ_TAGCHECK_WAY_IF_MES: // L15_REQTYPE_LOAD
+        `L15_DCACHE_READ_TAGCHECK_WAY_IF_MES: // Cacheable load
         begin
             dcache_val_s2 = tagcheck_state_mes_s2;
             dcache_rw_s2 = `L15_DTAG_RW_READ;
             dcache_index_s2 = cache_index_s2;
             dcache_way_s2 = tagcheck_way_s2;
         end
-        `L15_DCACHE_READ_LRU_WAY_IF_M: // L15_REQTYPE_ACKDT_LD/ST_IM/LR - eviction for the fill
+        `L15_DCACHE_READ_LRU_WAY_IF_M:
         begin
-            dcache_val_s2 = lru_state_m_s2;
-            //dcache_val_s2 = lru_state_me_s2;
+            //dcache_val_s2 = lru_state_m_s2;
+            // victim cache - read data whenever it is evicted
+            dcache_val_s2 = (lru_state_m_s2 || (lru_state_s2 == `L15_MESI_STATE_E));
             dcache_rw_s2 = `L15_DTAG_RW_READ;
             dcache_index_s2 = cache_index_s2;
             dcache_way_s2 = lru_way_s2;
@@ -2739,7 +2760,7 @@ begin
             dcache_index_s2 = cache_index_s2;
             dcache_way_s2 = flush_way_s2;
         end
-        `L15_DCACHE_WRITE_TAGCHECK_WAY_IF_ME_FROM_MSHR:
+        `L15_DCACHE_WRITE_TAGCHECK_WAY_IF_ME_FROM_MSHR: // Cacheable store
         begin
             dcache_val_s2 = tagcheck_state_me_s2;
             dcache_rw_s2 = `L15_DTAG_RW_WRITE;
@@ -2755,7 +2776,7 @@ begin
             dcache_way_s2 = tagcheck_way_s2;
             dcache_source_s2 = `L15_DCACHE_SOURCE_MSHR;
         end
-        `L15_DCACHE_WRITE_LRU_WAY_FROM_NOC2: // L15_REQTYPE_ACKDT_LD/LR - the fill
+        `L15_DCACHE_WRITE_LRU_WAY_FROM_NOC2:
         begin
             dcache_val_s2 = 1'b1;
             dcache_rw_s2 = `L15_DTAG_RW_WRITE;
@@ -2763,7 +2784,7 @@ begin
             dcache_way_s2 = lru_way_s3_bypassed; // need to be from S3, shouldn't change behavior but...
             dcache_source_s2 = `L15_DCACHE_SOURCE_NOC2;
         end
-        `L15_DCACHE_WRITE_LRU_WAY_FROM_NOC2_AND_MSHR: // L15_REQTYPE_ACKDT_ST_IM - the fill
+        `L15_DCACHE_WRITE_LRU_WAY_FROM_NOC2_AND_MSHR:
         begin
             dcache_val_s2 = 1'b1;
             dcache_rw_s2 = `L15_DTAG_RW_WRITE;
@@ -2828,12 +2849,12 @@ begin
             dcache_write_mask_s2[`L15_UNPARAM_127_0] = dcache_mshr_write_mask_s2[`L15_UNPARAM_127_0];
             dcache_write_data_s2[`L15_UNPARAM_127_0] = mshr_pipe_write_buffer_s2[`L15_UNPARAM_127_0];
         end
-        `L15_DCACHE_SOURCE_NOC2: // L15_REQTYPE_ACKDT_LD/LR - the fill
+        `L15_DCACHE_SOURCE_NOC2:
         begin
             dcache_write_mask_s2[`L15_UNPARAM_127_0] = {128{1'b1}};
             dcache_write_data_s2[`L15_UNPARAM_127_0] = {noc2decoder_l15_data_0[`L15_UNPARAM_63_0], noc2decoder_l15_data_1[`L15_UNPARAM_63_0]};
         end
-        `L15_DCACHE_SOURCE_NOC2_AND_MSHR: // L15_REQTYPE_ACKDT_ST_IM - the fill
+        `L15_DCACHE_SOURCE_NOC2_AND_MSHR:
         begin
             dcache_write_mask_s2[`L15_UNPARAM_127_0] = {128{1'b1}};
             dcache_write_data_s2[`L15_UNPARAM_127_0] = dcache_write_merge_mshr_noc2_s2[`L15_UNPARAM_127_0];
@@ -2869,6 +2890,69 @@ begin
     if (hmt_op_s2 == `L15_HMT_OP_WRITE)
       l15_hmt_write_mask_s2[`L15_CSM_GHID_WIDTH-1:0] = {`L15_CSM_GHID_WIDTH{1'b1}};
     `endif
+end
+
+////////////////////////////
+// Victim Cache (S2)
+////////////////////////////
+
+reg vc_fetch_val_s2;
+reg vc_fetch_rw_s2;
+reg [`VC_NUM_ENTRIES_LOG2-1:0] vc_fetch_index_s2;
+
+wire vc_hit_s2 = (vc_l15_match_mesi_s2 != `L15_MESI_STATE_I);
+
+always @ *
+begin
+    vc_fetch_val_s2 = 0;
+    vc_fetch_rw_s2 = 0;
+    vc_fetch_index_s2 = 0;
+
+    case (dcache_operation_s2)
+        `L15_DCACHE_READ_TAGCHECK_WAY_IF_MES: // Cacheable load
+        begin
+            vc_fetch_val_s2 = vc_hit_s2;
+            vc_fetch_rw_s2 = `L15_DTAG_RW_READ;
+            vc_fetch_index_s2 = vc_l15_match_index_s2;
+        end
+        `L15_DCACHE_WRITE_TAGCHECK_WAY_IF_ME_FROM_MSHR: // Cacheable store
+        begin
+            vc_fetch_val_s2 = vc_hit_s2;
+            vc_fetch_rw_s2 = `L15_DTAG_RW_WRITE;
+            vc_fetch_index_s2 = vc_l15_match_index_s2;
+        end
+    endcase
+
+    l15_vc_fetch_val_s2 = vc_fetch_val_s2 && val_s2 && !stall_s2;
+    l15_vc_fetch_rw_s2 = vc_fetch_rw_s2;
+    l15_vc_fetch_index_s2 = vc_fetch_index_s2;
+
+    // l15_dcache_write_mask_s2
+    // l15_dcache_write_data_s2
+end
+
+// MESI
+reg vc_mesi_write_val_s2;
+//reg [`VC_NUM_ENTRIES_LOG2-1:0] vc_fetch_index_s2; (= vc_fetch_index_s2)
+reg [`L15_MESI_STATE_WIDTH-1:0] vc_mesi_write_state_s2;
+
+wire vc_mesi_state_e_s2 = (vc_l15_match_mesi_s2 == `L15_MESI_STATE_E);
+
+always @ *
+begin
+    vc_mesi_write_val_s2 = 0;
+    vc_mesi_write_state_s2 = vc_l15_match_mesi_s2;
+
+    case (mesi_write_op_s2)
+        `L15_S3_MESI_WRITE_TAGCHECK_WAY_M_IF_E: // Cacheable store
+        begin
+            vc_mesi_write_val_s2 = vc_mesi_state_e_s2;
+            vc_mesi_write_state_s2 = `L15_MESI_STATE_M;
+        end
+    endcase
+
+    l15_vc_mesi_write_val_s2 = vc_mesi_write_val_s2 && val_s2 && !stall_s2;
+    l15_vc_mesi_write_state_s2 = vc_mesi_write_state_s2;
 end
 
 ////////////////////////
@@ -2915,14 +2999,14 @@ begin
             mesi_write_way_s2 = tagcheck_way_s2;
             mesi_write_state_s2 = `L15_MESI_STATE_S;
         end
-        `L15_S3_MESI_WRITE_TAGCHECK_WAY_M_IF_E:
+        `L15_S3_MESI_WRITE_TAGCHECK_WAY_M_IF_E: // Cacheable store
         begin
             mesi_write_val_s2 = tagcheck_state_e_s2;
             mesi_write_index_s2 = cache_index_s2;
             mesi_write_way_s2 = tagcheck_way_s2;
             mesi_write_state_s2 = `L15_MESI_STATE_M;
         end
-        `L15_S3_MESI_WRITE_LRU_WAY_ACK_STATE: // L15_REQTYPE_ACKDT_LD/ST_IM/LR - the fill
+        `L15_S3_MESI_WRITE_LRU_WAY_ACK_STATE:
         begin
             mesi_write_val_s2 = 1'b1;
             mesi_write_index_s2 = cache_index_s2;
@@ -3058,10 +3142,9 @@ begin
             csm_address_s2 = address_s2;
             // l15_csm_req_ticket_s2 = csm_ticket_s2;
         end
-        `L15_CSM_OP_READ_GHID_IF_TAGCHECK_MISS: // L15_REQTYPE_LOAD
+        `L15_CSM_OP_READ_GHID_IF_TAGCHECK_MISS:
         begin
-            //csm_req_val_s2 = (tagcheck_state_mes_s2 == 1'b0);
-            csm_req_val_s2 = (tagcheck_state_mes_s2 == 1'b0) && ( !vc_hit_s2 );
+            csm_req_val_s2 = (tagcheck_state_mes_s2 == 1'b0);
             csm_req_type_s2 = 1'b0;
             // csm_read_ghid_val_s2 = 1'b1;
             csm_address_s2 = address_s2;
@@ -3262,7 +3345,6 @@ reg tagcheck_state_s_s3;
 reg tagcheck_state_e_s3;
 reg tagcheck_state_m_s3;
 reg lru_state_m_s3;
-reg lru_state_me_s3;
 reg lru_state_mes_s3;
 reg flush_state_m_s3;
 reg flush_state_mes_s3;
@@ -3383,7 +3465,6 @@ begin
     tagcheck_state_e_s3 = tagcheck_state_s3 == `L15_MESI_STATE_E;
 
     lru_state_m_s3 = lru_state_s3 == `L15_MESI_STATE_M;
-    lru_state_me_s3 = (lru_state_s3 == `L15_MESI_STATE_M) || (lru_state_s3 == `L15_MESI_STATE_E);
     lru_state_mes_s3 = lru_state_s3 == `L15_MESI_STATE_M || lru_state_s3 == `L15_MESI_STATE_E
                                                         || lru_state_s3 == `L15_MESI_STATE_S;
 
@@ -3725,7 +3806,7 @@ begin
             wmt_write_update_way_s3 = lru_way_s3;
             wmt_write_inval_val_s3 = 1'b1;
         end
-        `L15_WMT_UPDATE_TAGCHECK_WAY_AND_DEDUP_ENTRY_IF_TAGCHECK_WAY_IS_MES: // L15_REQTYPE_LOAD
+        `L15_WMT_UPDATE_TAGCHECK_WAY_AND_DEDUP_ENTRY_IF_TAGCHECK_WAY_IS_MES:
         begin
             wmt_write_val_s3 = tagcheck_state_mes_s3;
             wmt_write_index_s3 = cache_index_l1d_s3[`L1D_SET_IDX_MASK];
@@ -3848,14 +3929,13 @@ begin
             s3_mshr_write_type_s3 = `L15_MSHR_WRITE_TYPE_DEALLOCATION;
             s3_mshr_write_mshrid_s3 = mshrid_s3;
         end
-        `L15_S3_MSHR_OP_DEALLOCATION_IF_TAGCHECK_MES: // L15_REQTYPE_LOAD
+        `L15_S3_MSHR_OP_DEALLOCATION_IF_TAGCHECK_MES: // Cacheable load
         begin
-            //s3_mshr_val_s3 = val_s3 && tagcheck_state_mes_s3;
-            s3_mshr_val_s3 = val_s3 && (tagcheck_state_mes_s3 || vc_hit_s3);
+            s3_mshr_val_s3 = val_s3 && tagcheck_state_mes_s3;
             s3_mshr_write_type_s3 = `L15_MSHR_WRITE_TYPE_DEALLOCATION;
             s3_mshr_write_mshrid_s3 = mshrid_s3;
         end
-        `L15_S3_MSHR_OP_DEALLOCATION_IF_TAGCHECK_M_E_ELSE_UPDATE_STATE_STMSHR:
+        `L15_S3_MSHR_OP_DEALLOCATION_IF_TAGCHECK_M_E_ELSE_UPDATE_STATE_STMSHR: // Cacheable store
         begin
             s3_mshr_val_s3 = val_s3;
             s3_mshr_write_type_s3 = tagcheck_state_me_s3 ?  `L15_MSHR_WRITE_TYPE_DEALLOCATION :
@@ -3874,7 +3954,7 @@ begin
             // s3_mshr_update_way_s3 = tagcheck_way_s3;
             s3_mshr_write_threadid_s3[`L15_THREADID_MASK] = stbuf_compare_threadid_s3[`L15_THREADID_MASK];
         end
-        `L15_S3_MSHR_OP_UPDATE_ST_MSHR_IM_IF_INDEX_LRU_WAY_MATCHES: // L15_REQTYPE_ACKDT_LD/ST_IM/LR - eviction for the fill
+        `L15_S3_MSHR_OP_UPDATE_ST_MSHR_IM_IF_INDEX_LRU_WAY_MATCHES:
         begin
             s3_mshr_val_s3 = val_s3 && stbuf_compare_lru_match_val_s3;
             s3_mshr_write_type_s3 = `L15_MSHR_WRITE_TYPE_UPDATE_ST_STATE;
@@ -3901,6 +3981,60 @@ begin
     pipe_mshr_threadid_s3[`L15_THREADID_MASK] = s3_mshr_write_threadid_s3[`L15_THREADID_MASK];
     pipe_mshr_write_update_state_s3 = s3_mshr_update_state_s3;
     pipe_mshr_write_update_way_s3 = s3_mshr_update_way_s3;
+end
+
+////////////////////////////
+// Victim Cache (S3)
+////////////////////////////
+
+reg [`L15_MESI_STATE_WIDTH-1:0] vc_match_mesi_s3, vc_match_mesi_s3_next;
+
+wire vc_hit_s3 = (vc_match_mesi_s3 != `L15_MESI_STATE_I);
+wire vc_mesi_state_si_s3 = ((vc_match_mesi_s3 == `L15_MESI_STATE_S) || (vc_match_mesi_s3 == `L15_MESI_STATE_I));
+wire vc_mesi_state_me_s3 = ((vc_match_mesi_s3 == `L15_MESI_STATE_M) || (vc_match_mesi_s3 == `L15_MESI_STATE_E));
+
+always @ (posedge clk)
+begin
+    if (!rst_n) begin
+        vc_match_mesi_s3 <= 0;
+    end else begin
+        vc_match_mesi_s3 <= vc_match_mesi_s3_next;
+    end
+end
+
+always @ *
+begin
+    if (stall_s3) begin
+        vc_match_mesi_s3_next = vc_match_mesi_s3;
+    end else begin
+        vc_match_mesi_s3_next = vc_l15_match_mesi_s2;
+    end
+end
+
+// store cache-evicted data
+reg vc_store_evict_val_s3;
+reg [`VC_ADDR_WIDTH-1:0] vc_store_evict_addr_s3;
+reg [`L15_CACHELINE_WIDTH-1:0] vc_store_evict_data_s3;
+
+always @ *
+begin
+    vc_store_evict_val_s3 = 0;
+    vc_store_evict_addr_s3 = 0;
+    vc_store_evict_data_s3 = 0;
+
+    case (noc3_operations_s3)
+        `L15_NOC3_GEN_WRITEBACK_IF_LRU_M_FROM_DCACHE:
+        begin
+            vc_store_evict_val_s3 = (lru_state_m_s3 || (lru_state_s3 == `L15_MESI_STATE_E));
+            vc_store_evict_addr_s3 = {lru_way_tag_s3, cache_index_s3};
+            vc_store_evict_data_s3 = dcache_l15_dout_s3;
+        end
+    endcase
+
+    l15_vc_store_evict_val_s3 = (vc_store_evict_val_s3 && val_s3 && !stall_s3);
+    //l15_vc_store_evict_val_s3 = 0;
+    l15_vc_store_evict_addr_s3 = vc_store_evict_addr_s3;
+    l15_vc_store_evict_data_s3 = vc_store_evict_data_s3;
 end
 
 // CPX request logic
@@ -3943,7 +4077,7 @@ begin
             cpx_invalidate_l1_s3 = 1;
             cpx_inval_way_s3 = wmt_compare_match_way_s3;
         end
-        `L15_CPX_GEN_INVALIDATION_IF_LRU_MES_AND_WAYMAP_VALID: // L15_REQTYPE_ACKDT_LD/ST_IM/LR - eviction for the fill
+        `L15_CPX_GEN_INVALIDATION_IF_LRU_MES_AND_WAYMAP_VALID:
         begin
             cpx_req_val_s3 = lru_state_mes_s3 && wmt_compare_match_s3;
             cpx_type_s3 = `CPX_RESTYPE_INVAL;
@@ -3969,20 +4103,20 @@ begin
             cpx_type_s3 = `CPX_RESTYPE_LOAD;
             cpx_data_source_s3 = `L15_CPX_SOURCE_BOGUS;
         end
-        `L15_CPX_GEN_LD_RESPONSE_IF_TAGCHECK_MES_FROM_DCACHE: // L15_REQTYPE_LOAD
+        `L15_CPX_GEN_LD_RESPONSE_IF_TAGCHECK_MES_FROM_DCACHE: // Cacheable load
         begin
             //cpx_req_val_s3 = tagcheck_state_mes_s3;
-            cpx_req_val_s3 = (tagcheck_state_mes_s3 || vc_hit_s3);
+            cpx_req_val_s3 = (tagcheck_state_mes_s3 || vc_hit_s3); // victim cache
             cpx_type_s3 = `CPX_RESTYPE_LOAD;
             cpx_data_source_s3 = `L15_CPX_SOURCE_DCACHE;
         end
-        `L15_CPX_GEN_LD_RESPONSE_FROM_NOC2: // ACKDT_LD - fill, ACKDT_LD_NC
+        `L15_CPX_GEN_LD_RESPONSE_FROM_NOC2:
         begin
             cpx_req_val_s3 = 1'b1;
             cpx_type_s3 = `CPX_RESTYPE_LOAD;
             cpx_data_source_s3 = `L15_CPX_SOURCE_NOC2_BUFFER;
         end
-        `L15_CPX_GEN_ST_ACK: // L15_REQTYPE_ACKDT_ST_IM - fill, ...
+        `L15_CPX_GEN_ST_ACK:
         begin
             cpx_req_val_s3 = 1'b1;
             cpx_type_s3 = `CPX_RESTYPE_STORE_ACK;
@@ -4008,9 +4142,10 @@ begin
             cpx_type_s3 = `CPX_RESTYPE_STORE_ACK;
             cpx_inval_way_s3 = wmt_compare_match_way_s3;
         end
-        `L15_CPX_GEN_ST_ACK_IF_TAGCHECK_M_E_WITH_POSSIBLE_INVAL: // L15_REQTYPE_STORE - regular st
+        `L15_CPX_GEN_ST_ACK_IF_TAGCHECK_M_E_WITH_POSSIBLE_INVAL: // Cacheable store
         begin
-            cpx_req_val_s3 = tagcheck_state_me_s3;
+            //cpx_req_val_s3 = tagcheck_state_me_s3;
+            cpx_req_val_s3 = (tagcheck_state_me_s3 || vc_mesi_state_me_s3); // victim cache
             cpx_type_s3 = `CPX_RESTYPE_STORE_ACK;
             cpx_invalidate_l1_s3 = wmt_compare_match_s3;
             cpx_inval_way_s3 = wmt_compare_match_way_s3;
@@ -4117,12 +4252,11 @@ begin
                 {7'b0,(~tagcheck_lrsc_flag_s3),24'b0, 7'b0,(~tagcheck_lrsc_flag_s3),24'b0} :
                 {7'b0,(~tagcheck_lrsc_flag_s3),56'b0}); // write 0 on success
         end
-        `L15_CPX_SOURCE_DCACHE: // L15_REQTYPE_LOAD, L15_CPX_GEN_LD_RESPONSE_FROM_DCACHE
+        `L15_CPX_SOURCE_DCACHE:
         begin
-            //l15_cpxencoder_data_0[`L15_UNPARAM_63_0] = dcache_l15_dout_s3[127:64];
-            //l15_cpxencoder_data_1[`L15_UNPARAM_63_0] = dcache_l15_dout_s3[`L15_UNPARAM_63_0];
-            l15_cpxencoder_data_0[`L15_UNPARAM_63_0] = vc_hit_s3 ? vc_data_s3[127:64] : dcache_l15_dout_s3[127:64];
-            l15_cpxencoder_data_1[`L15_UNPARAM_63_0] = vc_hit_s3 ? vc_data_s3[`L15_UNPARAM_63_0] : dcache_l15_dout_s3[`L15_UNPARAM_63_0];
+            // victim cache
+            l15_cpxencoder_data_0[`L15_UNPARAM_63_0] = vc_hit_s3 ? vc_l15_fetch_data_s3[127:64] : dcache_l15_dout_s3[127:64];
+            l15_cpxencoder_data_1[`L15_UNPARAM_63_0] = vc_hit_s3 ? vc_l15_fetch_data_s3[`L15_UNPARAM_63_0] : dcache_l15_dout_s3[`L15_UNPARAM_63_0];
         end
         `L15_CPX_SOURCE_NOC2_BUFFER:
         begin
@@ -4172,7 +4306,7 @@ begin
     l15_noc1buffer_req_address = 0;
     noc1_homeid_source_s3 = 0;
     case (noc1_operation_s3)
-        `L15_NOC1_GEN_WRITEBACK_GUARD_IF_LRU_M: // L15_REQTYPE_ACKDT_LD/ST_IM/LR - eviction for the fill
+        `L15_NOC1_GEN_WRITEBACK_GUARD_IF_LRU_M:
         begin
             noc1_req_val_s3 = val_s3 && lru_state_m_s3;
             noc1_type_s3 = `L15_NOC1_REQTYPE_WRITEBACK_GUARD;
@@ -4196,7 +4330,7 @@ begin
             creditman_noc1_mispredicted_s3 = noc1_req_val_s3 ? 0 : val_s3;
             noc1_homeid_source_s3 = `L15_HOMEID_SRC_HMT;
         end
-        `L15_NOC1_GEN_DATA_LD_REQUEST: // L15_REQTYPE_LOAD_NC - nc load
+        `L15_NOC1_GEN_DATA_LD_REQUEST:
         begin
             noc1_req_val_s3 = val_s3;
             noc1_type_s3 = `L15_NOC1_REQTYPE_LD_REQUEST;
@@ -4204,10 +4338,10 @@ begin
             noc1_homeid_source_s3 = `L15_HOMEID_SRC_CSM_MODULE;
             // creditman_noc1_reserve_s3 = val_s3; // These are actually non-cacheable/prefetch loads
         end
-        `L15_NOC1_GEN_DATA_LD_REQUEST_IF_TAGCHECK_MISS: // L15_REQTYPE_LOAD
+        `L15_NOC1_GEN_DATA_LD_REQUEST_IF_TAGCHECK_MISS: // Cacheable load
         begin
             //noc1_req_val_s3 = val_s3 && !tagcheck_state_mes_s3;
-            noc1_req_val_s3 = val_s3 && !(tagcheck_state_mes_s3 || vc_hit_s3);
+            noc1_req_val_s3 = val_s3 && !(tagcheck_state_mes_s3 || vc_hit_s3); // victim cache
             noc1_type_s3 = `L15_NOC1_REQTYPE_LD_REQUEST;
             l15_noc1buffer_req_address = address_s3;
             noc1_homeid_source_s3 = `L15_HOMEID_SRC_CSM_MODULE;
@@ -4221,7 +4355,7 @@ begin
             l15_noc1buffer_req_address = address_s3;
             noc1_homeid_source_s3 = `L15_HOMEID_SRC_CSM_MODULE;
         end
-        `L15_NOC1_GEN_DATA_WRITETHROUGH_REQUEST_FROM_PCX: // L15_REQTYPE_WRITETHROUGH - st nc or blockstore
+        `L15_NOC1_GEN_DATA_WRITETHROUGH_REQUEST_FROM_PCX:
         begin
             noc1_req_val_s3 = val_s3;
             noc1_type_s3 = `L15_NOC1_REQTYPE_WRITETHROUGH_REQUEST;
@@ -4229,11 +4363,15 @@ begin
             l15_noc1buffer_req_address = address_s3;
             noc1_homeid_source_s3 = `L15_HOMEID_SRC_CSM_MODULE;
         end
-        `L15_NOC1_GEN_DATA_ST_UPGRADE_IF_TAGCHECK_S_ELSE_ST_FILL_IF_TAGCHECK_I:
+        `L15_NOC1_GEN_DATA_ST_UPGRADE_IF_TAGCHECK_S_ELSE_ST_FILL_IF_TAGCHECK_I: // Cacheable store
         begin
-            noc1_req_val_s3 = val_s3 && ((tagcheck_state_s3 == `L15_MESI_STATE_S) || (tagcheck_state_s3 == `L15_MESI_STATE_I));
-            noc1_type_s3 = (tagcheck_state_s3 == `L15_MESI_STATE_S) ? `L15_NOC1_REQTYPE_ST_UPGRADE_REQUEST :
-                                                                        `L15_NOC1_REQTYPE_ST_FILL_REQUEST;
+            //noc1_req_val_s3 = val_s3 && ((tagcheck_state_s3 == `L15_MESI_STATE_S) || (tagcheck_state_s3 == `L15_MESI_STATE_I));
+            //noc1_type_s3 = (tagcheck_state_s3 == `L15_MESI_STATE_S) ? `L15_NOC1_REQTYPE_ST_UPGRADE_REQUEST :
+            //                                                            `L15_NOC1_REQTYPE_ST_FILL_REQUEST;
+            // victim cache
+            noc1_req_val_s3 = val_s3 && (((tagcheck_state_s3 == `L15_MESI_STATE_S) || (tagcheck_state_s3 == `L15_MESI_STATE_I)) && vc_mesi_state_si_s3);
+            noc1_type_s3 = ((tagcheck_state_s3 == `L15_MESI_STATE_S) || (vc_match_mesi_s3 == `L15_MESI_STATE_S)) ? 
+                                `L15_NOC1_REQTYPE_ST_UPGRADE_REQUEST : `L15_NOC1_REQTYPE_ST_FILL_REQUEST;
             noc1_data_source_s3 = `L15_NOC1_SOURCE_PCX_64B;
             l15_noc1buffer_req_address = address_s3;
             noc1_homeid_source_s3 = `L15_HOMEID_SRC_CSM_MODULE;
@@ -4418,7 +4556,7 @@ begin
             noc3_address_s3 = address_s3;
             noc3_homeid_source_s3 = `L15_HOMEID_SRC_HMT;
         end
-        `L15_NOC3_GEN_WRITEBACK_IF_LRU_M_FROM_DCACHE: // L15_REQTYPE_ACKDT_LD/ST_IM/LR - eviction for the fill
+        `L15_NOC3_GEN_WRITEBACK_IF_LRU_M_FROM_DCACHE: // eviction due to load/store miss
         begin
             noc3_req_val_s3 = val_s3 && lru_state_m_s3;
             noc3_type_s3 = `L15_NOC3_REQTYPE_WRITEBACK;
@@ -4434,7 +4572,7 @@ begin
             noc3_address_s3 = flush_way_address_s3;
             noc3_homeid_source_s3 = `L15_HOMEID_SRC_HMT;
         end
-        `L15_NOC3_GEN_INVAL_ACK_FROM_DCACHE: // L15_REQTYPE_INVALIDATION (and predecode_is_last_inval_s1)
+        `L15_NOC3_GEN_INVAL_ACK_FROM_DCACHE:
         begin
             noc3_req_val_s3 = val_s3;
             noc3_type_s3 = `L15_NOC3_REQTYPE_INVAL_ACK;
@@ -4504,91 +4642,6 @@ begin
                 l15_noc3encoder_req_homeid = expanded_hmt_homeid_s3;
             `endif
     endcase
-end
-
-////////////////////////////
-// Victim Cache 
-////////////////////////////
-
-/********** S1 **********/
-
-// load tag and mesi from vc
-always @ *
-begin
-    vc_read_val_s1 = 0;
-    vc_read_addr_s1 = 0;
-
-    // NOTE: decoder_dtag_operation_s1 == `L15_DTAG_OP_READ?
-    //       decoder_mesi_read_op_s1 == `L15_S2_MESI_READ?
-    case (predecode_reqtype_s1)
-        `L15_REQTYPE_LOAD:
-        begin
-            vc_read_val_s1 = val_s1;
-            vc_read_addr_s1 = predecode_address_s1[`L15_CACHE_TAG_HI:`L15_IDX_LOW]; // [39:4]
-        end
-        // TODO: cacheable store
-    endcase
-
-    l15_vc_read_val_s1 = vc_read_val_s1 && !stall_s1;
-    l15_vc_read_addr_s1 = vc_read_addr_s1;
-end
-
-
-/********** S2 **********/
-
-// pass returned values to S3
-always @ *
-begin
-    if (stall_s3) begin
-        vc_mesi_s3_next = vc_mesi_s3;
-        vc_data_s3_next = vc_data_s3;
-    end else begin
-        vc_mesi_s3_next = vc_l15_mesi_s2;
-        vc_data_s3_next = vc_l15_data_s2;
-    end
-end
-
-always @ (posedge clk)
-begin
-    if (!rst_n) begin
-        vc_mesi_s3 <= 0;
-        vc_data_s3 <= 0;
-    end else begin
-        vc_mesi_s3 <= vc_mesi_s3_next;
-        vc_data_s3 <= vc_data_s3_next;
-    end
-end
-
-
-/********** S3 **********/
-
-// store cache-evicted data
-always @ *
-begin
-    vc_store_evict_val_s3 = 0;
-    vc_store_evict_addr_s3 = 0;
-    vc_store_evict_data_s3 = 0;
-
-    case (noc3_operations_s3)
-        `L15_NOC3_GEN_WRITEBACK_IF_LRU_M_FROM_DCACHE: // L15_REQTYPE_ACKDT_LD/ST_IM/LR - eviction for the fill
-        begin
-            vc_store_evict_val_s3 = val_s3 && lru_state_m_s3;
-            //vc_store_evict_val_s3 = val_s3 && lru_state_me_s3;
-            vc_store_evict_addr_s3 = {lru_way_tag_s3, cache_index_s3};
-            vc_store_evict_data_s3 = dcache_l15_dout_s3;
-        end
-        `L15_NOC3_GEN_INVAL_ACK_FROM_DCACHE: // L15_REQTYPE_INVALIDATION (and predecode_is_last_inval_s1)
-        begin
-            vc_store_evict_val_s3 = val_s3 && lru_state_m_s3;
-            //vc_store_evict_val_s3 = val_s3 && lru_state_me_s3;
-            vc_store_evict_addr_s3 = address_s3[`L15_CACHE_TAG_HI:`L15_IDX_LOW];
-            vc_store_evict_data_s3 = dcache_l15_dout_s3;
-        end
-    endcase
-
-    l15_vc_store_evict_val_s3 = (vc_store_evict_val_s3 && val_s3 && !stall_s3);
-    l15_vc_store_evict_addr_s3 = vc_store_evict_addr_s3;
-    l15_vc_store_evict_data_s3 = vc_store_evict_data_s3;
 end
 
 endmodule
