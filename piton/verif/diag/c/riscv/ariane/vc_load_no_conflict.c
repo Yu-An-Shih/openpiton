@@ -31,12 +31,6 @@ int main(int argc, char ** argv) {
   *a4 = 4;
 
   for (int32_t k = 0; k < 10; k++) {
-    //*a1 = k;
-    //*a2 = k;
-    //*a3 = k;
-    //*a4 = k;
-    //*a5 = k;
-    
     tmp += *a1;
     tmp += *a2;
     tmp += *a3;
@@ -46,8 +40,6 @@ int main(int argc, char ** argv) {
   perf_marker( 1666 );
 
   printf("%d\n", tmp);
-
-  printf("Done!\n");
   
   return 0;
 }

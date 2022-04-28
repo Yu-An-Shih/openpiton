@@ -650,8 +650,11 @@ rf_l15_lruarray lruarray(
 );
 
 // victim cache
-wire l15_vc_read_val_s1;
-wire [`VC_ADDR_WIDTH-1:0] l15_vc_read_addr_s1;
+wire l15_vc_val_s1;
+wire l15_vc_rw_s1;
+wire [`VC_ADDR_WIDTH-1:0] l15_vc_addr_s1;
+wire [`L15_UNPARAM_127_0] l15_vc_write_mask_s1;
+wire [`L15_CACHELINE_WIDTH-1:0] l15_vc_write_data_s1;
 
 wire [`VC_NUM_ENTRIES_LOG2-1:0] vc_l15_index_s2;
 wire [`L15_MESI_STATE_WIDTH-1:0] vc_l15_mesi_s2;
@@ -665,8 +668,11 @@ victim_cache vc(
     .clk(clk),
     .rst_n(rst_n),
 
-    .l15_vc_read_val_s1(l15_vc_read_val_s1),
-    .l15_vc_read_addr_s1(l15_vc_read_addr_s1),
+    .l15_vc_val_s1(l15_vc_val_s1),
+    .l15_vc_rw_s1(l15_vc_rw_s1),
+    .l15_vc_addr_s1(l15_vc_addr_s1),
+    .l15_vc_write_mask_s1(l15_vc_write_mask_s1),
+    .l15_vc_write_data_s1(l15_vc_write_data_s1),
 
     .vc_l15_index_s2(vc_l15_index_s2),
     .vc_l15_mesi_s2(vc_l15_mesi_s2),
@@ -683,8 +689,11 @@ l15_pipeline pipeline(
     .rst_n(rst_n),
 
     // victim cache
-    .l15_vc_read_val_s1(l15_vc_read_val_s1),
-    .l15_vc_read_addr_s1(l15_vc_read_addr_s1),
+    .l15_vc_val_s1(l15_vc_val_s1),
+    .l15_vc_rw_s1(l15_vc_rw_s1),
+    .l15_vc_addr_s1(l15_vc_addr_s1),
+    .l15_vc_write_mask_s1(l15_vc_write_mask_s1),
+    .l15_vc_write_data_s1(l15_vc_write_data_s1),
 
     .vc_l15_index_s2(vc_l15_index_s2),
     .vc_l15_mesi_s2(vc_l15_mesi_s2),

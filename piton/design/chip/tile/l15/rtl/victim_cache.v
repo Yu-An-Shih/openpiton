@@ -16,8 +16,11 @@ module victim_cache (
     input clk,
     input rst_n,
     // S1
-    input l15_vc_read_val_s1,
-    input [`VC_ADDR_WIDTH-1:0] l15_vc_read_addr_s1,
+    input l15_vc_val_s1,
+    input l15_vc_rw_s1,
+    input [`VC_ADDR_WIDTH-1:0] l15_vc_addr_s1,
+    input [`L15_UNPARAM_127_0] l15_vc_write_mask_s1,
+    input [`L15_CACHELINE_WIDTH-1:0] l15_vc_write_data_s1,
     // S2
     output [`VC_NUM_ENTRIES_LOG2-1:0] vc_l15_index_s2,
     output [`L15_MESI_STATE_WIDTH-1:0] vc_l15_mesi_s2,
@@ -56,18 +59,39 @@ always @(*) begin
     match_data_s2_next = 0;
     store_evict_cntr_s3_next = store_evict_cntr_s3;
 
-    // S1: read tag and mesi
-    if (l15_vc_read_val_s1) begin
-        for (i = 0; i < `VC_NUM_ENTRIES; i = i + 1) begin
-            if ( (vc_mesi[i] != `L15_MESI_STATE_I) && (l15_vc_read_addr_s1 == vc_addr[i]) 
-              && ( !l15_vc_store_evict_val_s3 || (i != store_evict_cntr_s3) ) ) // handle conflict with S3
+    // S1: read or write data
+    if (l15_vc_val_s1) begin
+        case (l15_vc_rw_s1)
+            `L15_DTAG_RW_READ:
             begin
-                //vc_hit_s2_next = 1'b1;
-                match_index_s2_next = i;
-                match_mesi_s2_next = vc_mesi[i];
-                match_data_s2_next = vc_data[i];
+                for (i = 0; i < `VC_NUM_ENTRIES; i = i + 1) begin
+                    if ( (vc_mesi[i] != `L15_MESI_STATE_I) && (l15_vc_addr_s1 == vc_addr[i]) 
+                      && ( !l15_vc_store_evict_val_s3 || (i != store_evict_cntr_s3) ) ) // handle conflict with S3
+                    begin
+                        //vc_hit_s2_next = 1'b1;
+                        match_index_s2_next = i;
+                        match_mesi_s2_next = vc_mesi[i];
+                        match_data_s2_next = vc_data[i];
+                    end
+                end
             end
-        end
+            `L15_DTAG_RW_WRITE:
+            begin
+                for (i = 0; i < `VC_NUM_ENTRIES; i = i + 1) begin
+                    if ( (vc_mesi[i] != `L15_MESI_STATE_I) && (l15_vc_addr_s1 == vc_addr[i]) 
+                      && ( !l15_vc_store_evict_val_s3 || (i != store_evict_cntr_s3) ) ) // handle conflict with S3
+                    begin
+                        //vc_hit_s2_next = 1'b1;
+                        match_index_s2_next = i;
+                        vc_mesi_next[i] = `L15_MESI_STATE_M;
+                        vc_data_next[i] = (l15_vc_write_data_s1 & l15_vc_write_mask_s1) | (vc_data[i] & ~l15_vc_write_mask_s1);
+
+                        match_mesi_s2_next = vc_mesi_next[i];
+                        match_data_s2_next = vc_data_next[i];
+                    end
+                end
+            end
+        endcase
     end
 
     // S3: store evict data
@@ -76,7 +100,6 @@ always @(*) begin
         vc_addr_next[store_evict_cntr_s3] = l15_vc_store_evict_addr_s3;
         vc_data_next[store_evict_cntr_s3] = l15_vc_store_evict_data_s3;
         vc_mesi_next[store_evict_cntr_s3] = `L15_MESI_STATE_E;
-        // TODO: handle conflicts with S2
         // TODO: what if vc_mesi[store_evict_cntr_s3] == `L15_MESI_STATE_M?
 
         store_evict_cntr_s3_next = store_evict_cntr_s3 + 1;

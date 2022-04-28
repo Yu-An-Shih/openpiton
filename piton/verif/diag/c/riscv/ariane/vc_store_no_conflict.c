@@ -25,16 +25,14 @@ int main(int argc, char ** argv) {
 
   for (int32_t k = 0; k < 10; k++) {
     *a1 = k;
-    *a2 = k;
-    *a3 = k;
-    *a4 = k;
+    *a2 = k + 1;
+    *a3 = k + 2;
+    *a4 = k + 3;
   }
 
   perf_marker( 1666 );
 
-  printf("%d\n", *a1);
-
-  printf("Done!\n");
+  printf("%d\n", *a1 + *a2 + *a3 + *a4);
   
   return 0;
 }

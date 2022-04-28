@@ -43,8 +43,6 @@ int main(int argc, char ** argv) {
   perf_marker( 1666 );
 
   printf("%d\n", tmp);
-
-  printf("Done!\n");
   
   return 0;
 }

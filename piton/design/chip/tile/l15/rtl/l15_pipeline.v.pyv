@@ -57,8 +57,11 @@ module l15_pipeline(
     input wire rst_n,
 
     // victim cache
-    output reg l15_vc_read_val_s1,
-    output reg [`VC_ADDR_WIDTH-1:0] l15_vc_read_addr_s1,
+    output reg l15_vc_val_s1,
+    output reg l15_vc_rw_s1,
+    output reg [`VC_ADDR_WIDTH-1:0] l15_vc_addr_s1,
+    output reg [`L15_UNPARAM_127_0] l15_vc_write_mask_s1,
+    output reg [`L15_CACHELINE_WIDTH-1:0] l15_vc_write_data_s1,
 
     input wire [`VC_NUM_ENTRIES_LOG2-1:0] vc_l15_index_s2,
     input wire [`L15_MESI_STATE_WIDTH-1:0] vc_l15_mesi_s2,
@@ -326,8 +329,11 @@ begin
 end
 
 // victim cache signals
-reg vc_read_val_s1;
-reg [`VC_ADDR_WIDTH-1:0] vc_read_addr_s1;
+reg vc_val_s1;
+reg vc_rw_s1;
+reg [`VC_ADDR_WIDTH-1:0] vc_addr_s1;
+reg [`L15_UNPARAM_127_0] vc_write_mask_s1;
+reg [`L15_CACHELINE_WIDTH-1:0] vc_write_data_s1;
 
 reg [`L15_MESI_STATE_WIDTH-1:0] vc_mesi_s3, vc_mesi_s3_next;
 reg [`L15_CACHELINE_WIDTH-1:0] vc_data_s3, vc_data_s3_next;
@@ -1381,11 +1387,11 @@ begin
                 decoder_wmt_compare_op_s1 = `L15_WMT_COMPARE_TAGCHECK;
 
                 decoder_lruarray_write_op_s1 = `L15_LRU_UPDATE_ACCESS_BITS_IF_TAGCHECK_WAY_IS_MES;
-                decoder_csm_op_s1 = `L15_CSM_OP_READ_GHID_IF_TAGCHECK_SI;
-                decoder_s3_mshr_operation_s1 = `L15_S3_MSHR_OP_DEALLOCATION_IF_TAGCHECK_M_E_ELSE_UPDATE_STATE_STMSHR;
+                decoder_csm_op_s1 = `L15_CSM_OP_READ_GHID_IF_TAGCHECK_SI;                                             // modified?
+                decoder_s3_mshr_operation_s1 = `L15_S3_MSHR_OP_DEALLOCATION_IF_TAGCHECK_M_E_ELSE_UPDATE_STATE_STMSHR; // modified
                 decoder_mesi_write_op_s1 = `L15_S3_MESI_WRITE_TAGCHECK_WAY_M_IF_E;
-                decoder_cpx_operation_s1 = `L15_CPX_GEN_ST_ACK_IF_TAGCHECK_M_E_WITH_POSSIBLE_INVAL;
-                decoder_noc1_operation_s1 = `L15_NOC1_GEN_DATA_ST_UPGRADE_IF_TAGCHECK_S_ELSE_ST_FILL_IF_TAGCHECK_I;
+                decoder_cpx_operation_s1 = `L15_CPX_GEN_ST_ACK_IF_TAGCHECK_M_E_WITH_POSSIBLE_INVAL;                   // modified
+                decoder_noc1_operation_s1 = `L15_NOC1_GEN_DATA_ST_UPGRADE_IF_TAGCHECK_S_ELSE_ST_FILL_IF_TAGCHECK_I;   // modified
                 decoder_creditman_noc1_needed = 2'd1;
             end
         end
@@ -2739,7 +2745,7 @@ begin
             dcache_index_s2 = cache_index_s2;
             dcache_way_s2 = flush_way_s2;
         end
-        `L15_DCACHE_WRITE_TAGCHECK_WAY_IF_ME_FROM_MSHR:
+        `L15_DCACHE_WRITE_TAGCHECK_WAY_IF_ME_FROM_MSHR: // L15_REQTYPE_STORE - regular st
         begin
             dcache_val_s2 = tagcheck_state_me_s2;
             dcache_rw_s2 = `L15_DTAG_RW_WRITE;
@@ -3050,9 +3056,10 @@ begin
             csm_address_s2 = address_s2;
             // l15_csm_req_ticket_s2 = csm_ticket_s2;
         end
-        `L15_CSM_OP_READ_GHID_IF_TAGCHECK_SI:
+        `L15_CSM_OP_READ_GHID_IF_TAGCHECK_SI: // L15_REQTYPE_STORE - regular st
         begin
-            csm_req_val_s2 = (tagcheck_state_me_s2 == 1'b0);
+            //csm_req_val_s2 = (tagcheck_state_me_s2 == 1'b0);
+            csm_req_val_s2 = ((tagcheck_state_me_s2 == 1'b0) && ( !vc_hit_s2 ));
             csm_req_type_s2 = 1'b0;
             // csm_read_ghid_val_s2 = 1'b1;
             csm_address_s2 = address_s2;
@@ -3855,11 +3862,13 @@ begin
             s3_mshr_write_type_s3 = `L15_MSHR_WRITE_TYPE_DEALLOCATION;
             s3_mshr_write_mshrid_s3 = mshrid_s3;
         end
-        `L15_S3_MSHR_OP_DEALLOCATION_IF_TAGCHECK_M_E_ELSE_UPDATE_STATE_STMSHR:
+        `L15_S3_MSHR_OP_DEALLOCATION_IF_TAGCHECK_M_E_ELSE_UPDATE_STATE_STMSHR: // L15_REQTYPE_STORE - regular st
         begin
             s3_mshr_val_s3 = val_s3;
-            s3_mshr_write_type_s3 = tagcheck_state_me_s3 ?  `L15_MSHR_WRITE_TYPE_DEALLOCATION :
-                                                                            `L15_MSHR_WRITE_TYPE_UPDATE_ST_STATE;
+            //s3_mshr_write_type_s3 = tagcheck_state_me_s3 ?  `L15_MSHR_WRITE_TYPE_DEALLOCATION :
+            //                                                                `L15_MSHR_WRITE_TYPE_UPDATE_ST_STATE;
+            s3_mshr_write_type_s3 = (tagcheck_state_me_s3 || vc_hit_s3) ? `L15_MSHR_WRITE_TYPE_DEALLOCATION
+                                                                        : `L15_MSHR_WRITE_TYPE_UPDATE_ST_STATE;
             s3_mshr_write_mshrid_s3 = mshrid_s3;
             s3_mshr_update_state_s3 = tagcheck_state_mes_s3 ?
                                                     `L15_MESI_TRANSITION_STATE_SM : `L15_MESI_TRANSITION_STATE_IM;
@@ -4010,7 +4019,8 @@ begin
         end
         `L15_CPX_GEN_ST_ACK_IF_TAGCHECK_M_E_WITH_POSSIBLE_INVAL: // L15_REQTYPE_STORE - regular st
         begin
-            cpx_req_val_s3 = tagcheck_state_me_s3;
+            //cpx_req_val_s3 = tagcheck_state_me_s3;
+            cpx_req_val_s3 = (tagcheck_state_me_s3 || vc_hit_s3);
             cpx_type_s3 = `CPX_RESTYPE_STORE_ACK;
             cpx_invalidate_l1_s3 = wmt_compare_match_s3;
             cpx_inval_way_s3 = wmt_compare_match_way_s3;
@@ -4229,9 +4239,11 @@ begin
             l15_noc1buffer_req_address = address_s3;
             noc1_homeid_source_s3 = `L15_HOMEID_SRC_CSM_MODULE;
         end
-        `L15_NOC1_GEN_DATA_ST_UPGRADE_IF_TAGCHECK_S_ELSE_ST_FILL_IF_TAGCHECK_I:
+        `L15_NOC1_GEN_DATA_ST_UPGRADE_IF_TAGCHECK_S_ELSE_ST_FILL_IF_TAGCHECK_I: // L15_REQTYPE_STORE - regular st
         begin
-            noc1_req_val_s3 = val_s3 && ((tagcheck_state_s3 == `L15_MESI_STATE_S) || (tagcheck_state_s3 == `L15_MESI_STATE_I));
+            //noc1_req_val_s3 = val_s3 && ((tagcheck_state_s3 == `L15_MESI_STATE_S) || (tagcheck_state_s3 == `L15_MESI_STATE_I));
+            noc1_req_val_s3 = val_s3 && ((tagcheck_state_s3 == `L15_MESI_STATE_S) || (tagcheck_state_s3 == `L15_MESI_STATE_I))
+                                     && ( !vc_hit_s3 );
             noc1_type_s3 = (tagcheck_state_s3 == `L15_MESI_STATE_S) ? `L15_NOC1_REQTYPE_ST_UPGRADE_REQUEST :
                                                                         `L15_NOC1_REQTYPE_ST_FILL_REQUEST;
             noc1_data_source_s3 = `L15_NOC1_SOURCE_PCX_64B;
@@ -4512,8 +4524,59 @@ end
 
 /********** S1 **********/
 
-// load tag and mesi from vc
+// read from vc / write to vc
 always @ *
+begin
+    vc_val_s1 = 0;
+    vc_rw_s1 = 0;
+    vc_addr_s1 = 0;
+    vc_write_mask_s1 = 0;
+    vc_write_data_s1 = 0;
+
+    // NOTE: decoder_dtag_operation_s1 == `L15_DTAG_OP_READ?
+    //       decoder_mesi_read_op_s1 == `L15_S2_MESI_READ?
+    case (predecode_reqtype_s1)
+        `L15_REQTYPE_LOAD:
+        begin
+            vc_val_s1 = val_s1;
+            vc_rw_s1 = `L15_DTAG_RW_READ;
+            vc_addr_s1 = predecode_address_s1[`L15_CACHE_TAG_HI:`L15_IDX_LOW]; // [39:4]
+        end
+        `L15_REQTYPE_STORE:
+        begin
+            vc_val_s1 = val_s1;
+            vc_rw_s1 = `L15_DTAG_RW_WRITE;
+            vc_addr_s1 = predecode_address_s1[`L15_CACHE_TAG_HI:`L15_IDX_LOW]; // [39:4]
+            vc_write_mask_s1 = {
+                {8{write_mask_s1[15]}},
+                {8{write_mask_s1[14]}},
+                {8{write_mask_s1[13]}},
+                {8{write_mask_s1[12]}},
+                {8{write_mask_s1[11]}},
+                {8{write_mask_s1[10]}},
+                {8{write_mask_s1[9]}},
+                {8{write_mask_s1[8]}},
+                {8{write_mask_s1[7]}},
+                {8{write_mask_s1[6]}},
+                {8{write_mask_s1[5]}},
+                {8{write_mask_s1[4]}},
+                {8{write_mask_s1[3]}},
+                {8{write_mask_s1[2]}},
+                {8{write_mask_s1[1]}},
+                {8{write_mask_s1[0]}}
+            };
+            vc_write_data_s1 = {pcxdecoder_l15_data, pcxdecoder_l15_data};
+        end
+    endcase
+
+    l15_vc_val_s1 = vc_val_s1 && !stall_s1;
+    l15_vc_rw_s1 = vc_rw_s1;
+    l15_vc_addr_s1 = vc_addr_s1;
+    l15_vc_write_mask_s1 = vc_write_mask_s1;
+    l15_vc_write_data_s1 = vc_write_data_s1;
+end
+
+/*always @ *
 begin
     vc_read_val_s1 = 0;
     vc_read_addr_s1 = 0;
@@ -4531,7 +4594,7 @@ begin
 
     l15_vc_read_val_s1 = vc_read_val_s1 && !stall_s1;
     l15_vc_read_addr_s1 = vc_read_addr_s1;
-end
+end*/
 
 
 /********** S2 **********/
