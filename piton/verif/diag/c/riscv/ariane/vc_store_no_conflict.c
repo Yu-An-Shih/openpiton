@@ -32,9 +32,7 @@ int main(int argc, char ** argv) {
 
   perf_marker( 1666 );
 
-  printf("%d\n", *a1);
-
-  printf("Done!\n");
+  printf("%d\n", *a1 + *a2 + *a3 + *a4);
   
   return 0;
 }
