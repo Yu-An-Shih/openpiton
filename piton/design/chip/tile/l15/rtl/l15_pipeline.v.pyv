@@ -4576,26 +4576,6 @@ begin
     l15_vc_write_data_s1 = vc_write_data_s1;
 end
 
-/*always @ *
-begin
-    vc_read_val_s1 = 0;
-    vc_read_addr_s1 = 0;
-
-    // NOTE: decoder_dtag_operation_s1 == `L15_DTAG_OP_READ?
-    //       decoder_mesi_read_op_s1 == `L15_S2_MESI_READ?
-    case (predecode_reqtype_s1)
-        `L15_REQTYPE_LOAD:
-        begin
-            vc_read_val_s1 = val_s1;
-            vc_read_addr_s1 = predecode_address_s1[`L15_CACHE_TAG_HI:`L15_IDX_LOW]; // [39:4]
-        end
-        // TODO: cacheable store
-    endcase
-
-    l15_vc_read_val_s1 = vc_read_val_s1 && !stall_s1;
-    l15_vc_read_addr_s1 = vc_read_addr_s1;
-end*/
-
 
 /********** S2 **********/
 

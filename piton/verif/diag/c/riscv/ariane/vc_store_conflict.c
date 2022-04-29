@@ -26,10 +26,10 @@ int main(int argc, char ** argv) {
 
   for (int32_t k = 0; k < 10; k++) {
     *a1 = k;
-    *a2 = k + 1;
-    *a3 = k + 2;
-    *a4 = k + 3;
-    *a5 = k + 4;
+    *a2 = k;
+    *a3 = k;
+    *a4 = k;
+    *a5 = k;
   }
 
   perf_marker( 1666 );

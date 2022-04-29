@@ -97,12 +97,13 @@ always @(*) begin
     // S3: store evict data
     if (l15_vc_store_evict_val_s3) begin
         
-        vc_addr_next[store_evict_cntr_s3] = l15_vc_store_evict_addr_s3;
-        vc_data_next[store_evict_cntr_s3] = l15_vc_store_evict_data_s3;
-        vc_mesi_next[store_evict_cntr_s3] = `L15_MESI_STATE_E;
-        // TODO: what if vc_mesi[store_evict_cntr_s3] == `L15_MESI_STATE_M?
-
+        if (vc_mesi[store_evict_cntr_s3] != `L15_MESI_STATE_M) begin
+            vc_addr_next[store_evict_cntr_s3] = l15_vc_store_evict_addr_s3;
+            vc_data_next[store_evict_cntr_s3] = l15_vc_store_evict_data_s3;
+            vc_mesi_next[store_evict_cntr_s3] = `L15_MESI_STATE_E;
+        end
         store_evict_cntr_s3_next = store_evict_cntr_s3 + 1;
+        // TODO: evict dirty data from VC
     end
 end
 
