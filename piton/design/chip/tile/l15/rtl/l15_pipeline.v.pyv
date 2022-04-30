@@ -2717,8 +2717,8 @@ begin
     case (dcache_operation_s2)
         `L15_DCACHE_READ_TAGCHECK_WAY_IF_M: // L15_REQTYPE_INVALIDATION (from STORE_FWD), ...
         begin
-            dcache_val_s2 = tagcheck_state_m_s2;
-            //dcache_val_s2 = lru_state_me_s2;
+            //dcache_val_s2 = tagcheck_state_m_s2;
+            dcache_val_s2 = lru_state_me_s2;
             dcache_rw_s2 = `L15_DTAG_RW_READ;
             dcache_index_s2 = cache_index_s2;
             dcache_way_s2 = tagcheck_way_s2;
@@ -2732,8 +2732,8 @@ begin
         end
         `L15_DCACHE_READ_LRU_WAY_IF_M: // L15_REQTYPE_ACKDT_LD/ST_IM/LR - eviction for the fill
         begin
-            dcache_val_s2 = lru_state_m_s2;
-            //dcache_val_s2 = lru_state_me_s2;
+            //dcache_val_s2 = lru_state_m_s2;
+            dcache_val_s2 = lru_state_me_s2;
             dcache_rw_s2 = `L15_DTAG_RW_READ;
             dcache_index_s2 = cache_index_s2;
             dcache_way_s2 = lru_way_s2;
@@ -4615,15 +4615,15 @@ begin
     case (noc3_operations_s3)
         `L15_NOC3_GEN_WRITEBACK_IF_LRU_M_FROM_DCACHE: // L15_REQTYPE_ACKDT_LD/ST_IM/LR - eviction for the fill
         begin
-            vc_store_evict_val_s3 = val_s3 && lru_state_m_s3;
-            //vc_store_evict_val_s3 = val_s3 && lru_state_me_s3;
+            //vc_store_evict_val_s3 = val_s3 && lru_state_m_s3;
+            vc_store_evict_val_s3 = val_s3 && lru_state_me_s3;
             vc_store_evict_addr_s3 = {lru_way_tag_s3, cache_index_s3};
             vc_store_evict_data_s3 = dcache_l15_dout_s3;
         end
         `L15_NOC3_GEN_INVAL_ACK_FROM_DCACHE: // L15_REQTYPE_INVALIDATION (and predecode_is_last_inval_s1)
         begin
-            vc_store_evict_val_s3 = val_s3 && lru_state_m_s3;
-            //vc_store_evict_val_s3 = val_s3 && lru_state_me_s3;
+            //vc_store_evict_val_s3 = val_s3 && lru_state_m_s3;
+            vc_store_evict_val_s3 = val_s3 && lru_state_me_s3;
             vc_store_evict_addr_s3 = address_s3[`L15_CACHE_TAG_HI:`L15_IDX_LOW];
             vc_store_evict_data_s3 = dcache_l15_dout_s3;
         end
