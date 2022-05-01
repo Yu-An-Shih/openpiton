@@ -1,17 +1,17 @@
 // Info string generated with get_bootrom_info(...)
 // OpenPiton + Ariane framework
-// Date: Apr 29 2022 17:45:23
+// Date: Apr 30 2022 18:13:09
 
 const char info[] = {
 "\r\n\r\n"
 "----------------------------------------\r\n"
 "--     OpenPiton+Ariane Platform      --\r\n"
 "----------------------------------------\r\n"
-"OpenPiton Version: b'601b99c6'                   \r\n"
-"Ariane Version:    b'601b99c6'                   \r\n"
+"OpenPiton Version: b'b1312699'                   \r\n"
+"Ariane Version:    b''                   \r\n"
 "                                        \r\n"
 "FPGA Board:        None (Simulation)                   \r\n"
-"Build Date:        Apr 29 2022 17:45:23                   \r\n"
+"Build Date:        Apr 30 2022 18:13:09                   \r\n"
 "                                        \r\n"
 "#X-Tiles:          1                   \r\n"
 "#Y-Tiles:          1                   \r\n"
