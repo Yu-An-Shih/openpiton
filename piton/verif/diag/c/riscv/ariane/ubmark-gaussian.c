@@ -7,6 +7,19 @@
 //#include <math.h>
  
 #define mat_elem(a, y, x, n) (a + ((y) * (n) + (x)))
+
+#define perf_marker( x ) \
+    asm (   "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+        );
  
 void swap_row(double *a, double *b, int r1, int r2, int n)
 {
@@ -58,7 +71,9 @@ int main(void)
 {
 	//test_stats_on( 0 );
 
-	double a[] = {
+	perf_marker( 1555 );
+  
+  double a[] = {
 		1.00, 0.00, 0.00,  0.00,  0.00, 0.00,
 		1.00, 0.63, 0.39,  0.25,  0.16, 0.10,
 		1.00, 1.26, 1.58,  1.98,  2.49, 3.13,
@@ -70,10 +85,14 @@ int main(void)
 	double x[6];
  
 	gauss_eliminate(a, b, x, 6);
+  
+  perf_marker( 1666 );
+  
+  
 	//test_stats_off( 0 );
 
  	
  	//test_pass(0); 
-    pass();
+  pass();
 	return 0;
 }

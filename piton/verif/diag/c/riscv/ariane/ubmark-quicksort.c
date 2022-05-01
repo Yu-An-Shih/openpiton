@@ -5,6 +5,8 @@
 //#include "ubmark.h"
 //#include "ubmark-quicksort.dat"
 
+#include "math.h"
+
 #define perf_marker( x ) \
     asm (   "addi zero,zero," #x ";\n"  \
             "addi zero,zero," #x ";\n"  \
