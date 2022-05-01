@@ -5,6 +5,19 @@
 //#include "ubmark.h"
 //#include "ubmark-cmplx-mult.dat"
 
+#define perf_marker( x ) \
+    asm (   "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+        );
+
 void uart_print(char* str){
   static char* uart_base = (char*)(0xfff0c2c000);
   unsigned i = 0;
@@ -78,6 +91,10 @@ int dest_ [409600*2];
 int main( int argc, char* argv[] )
 {
     uart_print("Test ubmark-cmplx-mult starts\n");
+    
+    perf_marker( 1555 );
+    
+    
     const int size = 100;
     //int dest[size*2];
 
@@ -116,6 +133,8 @@ int main( int argc, char* argv[] )
       //    uart_print("...loop\r\n");
     // }
 
+    perf_marker( 1666 );
+    
     pass();
     return 0;
 }

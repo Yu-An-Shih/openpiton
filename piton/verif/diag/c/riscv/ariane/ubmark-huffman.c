@@ -4,6 +4,19 @@
 
 //#include "ubmark.h"
 #include <string.h>
+
+#define perf_marker( x ) \
+    asm (   "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+        );
  
 typedef struct node_t {
 	struct node_t *left, *right;
@@ -115,6 +128,7 @@ int main(void)
 	int i;
 
 	//test_stats_on( 0 );
+  perf_marker( 1555 );
 
 	const char *str = "this is an example for huffman encoding";
 	char buf[1024], out[1024];
@@ -125,6 +139,8 @@ int main(void)
 	encode(str, buf);
  
 	decode(buf, out, q[1]);
+ 
+  perf_marker( 1666 );
 
 	//test_stats_off( 0 );
 	

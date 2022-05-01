@@ -1,5 +1,5 @@
 //#include "ubmark.h"
-#include "math.h"
+//#include "math.h"
 
 #define PI 3.14159265358979323846
 
@@ -10,6 +10,38 @@
 #define W6 1108 /* 2048*sqrt(2)*cos(6*pi/16) */
 #define W7 565  /* 2048*sqrt(2)*cos(7*pi/16) */
 
+#define TYPE float
+#define twoPI 6.28318530717959
+#define CONST_PI 3.14159265358979
+#define modd(x, y) ((x) - (int)((x) / (y)) * (y))
+
+#define perf_marker( x ) \
+    asm (   "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+            "addi zero,zero," #x ";\n"  \
+        );
+
+TYPE cos_taylor_literal_6terms(TYPE x)
+{
+    x = modd(x, twoPI);
+    char sign = 1;
+    if (x > CONST_PI)
+    {
+        x -= CONST_PI;
+        sign = -1;
+    }
+    TYPE xx = x * x;
+
+    return sign * (1 - ((xx) / (2)) + ((xx * xx) / (24)) - ((xx * xx * xx) / (720)) + ((xx * xx * xx * xx) / (40320)) - ((xx * xx * xx * xx * xx) / (3628800)) + ((xx * xx * xx * xx * xx * xx) / (479001600)));
+}
+
 static double c[8][8]; /* transform coefficients */
 
 void init_dct()
@@ -18,10 +50,10 @@ void init_dct()
   double s;
 
   for (i=0; i<8; i++) {
-    s = (i==0) ? sqrt(0.125) : 0.5;
+    s = (i==0) ? 0.35355 : 0.5;
     
     for (j=0; j<8; j++)
-      c[i][j] = s * cos((PI/8.0)*i*(j+0.5));
+      c[i][j] = s * cos_taylor_literal_6terms((PI/8.0)*i*(j+0.5));
   }
 }
 
@@ -48,7 +80,7 @@ void dct(int* block)
       for (k=0; k<8; k++)
         s += c[i][k] * tmp[8*k+j];
 	
-      block[8*i+j] = (int)floor(s+0.499999);
+      block[8*i+j] = (int)(s+0.499999);
     }
 }
 
@@ -60,6 +92,8 @@ int main(int argc, char* argv[])
 
     //test_stats_on( 0 );
 
+    perf_marker( 1555 );
+    
     init_dct();
 
     for (k=0; k<64; k++) {
@@ -74,10 +108,14 @@ int main(int argc, char* argv[])
     }
     
     dct(p);
+    
+    perf_marker( 1666 );
     //test_stats_off( 0 );
 
     //test_pass( 0 );
     pass();
+    
+    
     return(0); 
  
 }
